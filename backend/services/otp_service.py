@@ -17,10 +17,16 @@ import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from dotenv import load_dotenv
 
 from ..database.mongodb import db_manager
 
 logger = logging.getLogger(__name__)
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+ENV_FILE = BACKEND_DIR / ".env"
+load_dotenv(ENV_FILE)
+load_dotenv()
 
 OTP_LENGTH = 6
 OTP_EXPIRY_MINUTES = int(os.getenv("OTP_EXPIRY_MINUTES", "10"))

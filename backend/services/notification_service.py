@@ -4,9 +4,12 @@ import os
 import smtplib
 from email.message import EmailMessage
 from datetime import datetime, timezone
+from pathlib import Path
 from dotenv import load_dotenv
 
-# Explicitly load backend .env variables
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+ENV_FILE = BACKEND_DIR / ".env"
+load_dotenv(ENV_FILE)
 load_dotenv()
 
 logger = logging.getLogger(__name__)
