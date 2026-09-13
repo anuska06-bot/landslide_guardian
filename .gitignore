@@ -1,6 +1,7 @@
 # Secrets
 .env
 backend/.env
+backend/.otp_cache.json
 
 # Python
 .venv/
