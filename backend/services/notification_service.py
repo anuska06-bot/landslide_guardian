@@ -132,11 +132,11 @@ def _send(recipient: str, subject: str, body: str) -> dict:
         last_port_used = p
         try:
             if method == "SSL":
-                with IPv4SMTP_SSL(host, p, timeout=15) as server:
+                with IPv4SMTP_SSL(host, p, timeout=4) as server:
                     server.login(clean_user, clean_password)
                     server.send_message(msg)
             else:
-                with IPv4SMTP(host, p, timeout=15) as server:
+                with IPv4SMTP(host, p, timeout=4) as server:
                     server.ehlo()
                     server.starttls()
                     server.ehlo()
