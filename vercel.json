@@ -1,23 +1,28 @@
 {
   "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "frontend/**",
-      "use": "@vercel/static"
+      "source": "/api/:path*",
+      "destination": "https://landslideguardian-production.up.railway.app/api/:path*"
+    },
+    {
+      "source": "/uploads/:path*",
+      "destination": "https://landslideguardian-production.up.railway.app/uploads/:path*"
+    },
+    {
+      "source": "/((?!api/|uploads/).*)",
+      "destination": "/frontend/$1"
     }
   ],
-  "routes": [
+  "headers": [
     {
-      "src": "/api/(.*)",
-      "dest": "https://landslideguardian-production.up.railway.app"
-    },
-    {
-      "src": "/uploads/(.*)",
-      "dest": "https://landslideguardian-production.up.railway.app"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "frontend/$1"
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
     }
   ]
 }
