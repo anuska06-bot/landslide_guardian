@@ -92,18 +92,22 @@ def _find_otp_doc(email: str):
 
 
 def clear_otp_rate_limit(email: str) -> None:
-    """Clear rate limiting and attempt counters for an email."""
+    """Clear rate limiting, attempt counters, and cooldown timestamps for an email."""
     email = (email or "").lower().strip()
     if not email:
         return
     try:
-        db_manager.otps.update_one({"email": email}, {"$set": {"resends": 0, "attempts": 0}})
+        db_manager.otps.update_one(
+            {"email": email},
+            {"$set": {"resends": 0, "attempts": 0}, "$unset": {"created_at": ""}}
+        )
     except Exception:
         pass
     cache = _load_otp_cache()
     if email in cache:
         cache[email]["resends"] = 0
         cache[email]["attempts"] = 0
+        cache[email].pop("created_at", None)
         _save_otp_cache(cache)
 
 
