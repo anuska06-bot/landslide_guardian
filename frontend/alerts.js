@@ -37,8 +37,21 @@ async function registerCitizen(e) {
   };
   try {
     const r = await API.post("/sos/register", data);
-    regMsg.innerHTML = `<span style="color:var(--green)">${esc(r.message)}</span>`;
-    document.getElementById("otpEmail").value = regEmail.value.trim().toLowerCase();
+    const registeredEmail = data.email;
+    document.getElementById("otpEmail").value = registeredEmail;
+    
+    // Automatically trigger OTP dispatch to the user's real email
+    regMsg.innerHTML = `<span style="color:var(--green)">✅ Registered ${esc(data.name)}. Sending verification code to your email...</span>`;
+    
+    try {
+      const otpRes = await API.post("/auth/send-otp", { email: registeredEmail });
+      regMsg.innerHTML = `<span style="color:var(--green)">✅ Registered! A 6-digit verification code has been dispatched to <strong>${esc(registeredEmail)}</strong>. Enter it below to activate your SOS alerts.</span>`;
+      const otpMsg = document.getElementById("otpMsg");
+      if (otpMsg) otpMsg.innerHTML = `<span style="color:var(--green)">📧 Verification code dispatched to your inbox. Check spam/junk if not visible within 1 minute.</span>`;
+    } catch (otpErr) {
+      regMsg.innerHTML = `<span style="color:var(--green)">✅ Registered ${esc(data.name)}. Please click 'Send verification code' below to receive your OTP.</span>`;
+    }
+
     e.target.reset();
     populateLocationSelect();
   } catch (err) {
@@ -49,14 +62,19 @@ async function registerCitizen(e) {
 async function sendOtp() {
   const email = (document.getElementById("otpEmail").value || "").trim().toLowerCase();
   const otpMsg = document.getElementById("otpMsg");
+  const btn = document.getElementById("sendOtpBtn");
   if (!email) { otpMsg.innerHTML = `<span style="color:var(--red)">Enter your email first.</span>`; return; }
+  
+  if (btn) { btn.disabled = true; btn.textContent = "Dispatching code..."; }
+  otpMsg.innerHTML = `<span style="color:var(--muted)">Connecting to email server...</span>`;
+
   try {
     const r = await API.post("/auth/send-otp", { email });
-    otpMsg.innerHTML = r.demo_otp
-      ? `<span style="color:var(--green)">${esc(r.message)}</span>`
-      : `<span style="color:var(--green)">${esc(r.message)}</span>`;
+    otpMsg.innerHTML = `<span style="color:var(--green)">✉️ ${esc(r.message || "A 6-digit verification code has been dispatched to your email.")}</span>`;
   } catch (err) {
     otpMsg.innerHTML = `<span style="color:var(--red)">${esc(err.message)}</span>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Resend verification code"; }
   }
 }
 
@@ -64,12 +82,24 @@ async function verifyOtp() {
   const email = (document.getElementById("otpEmail").value || "").trim().toLowerCase();
   const code = (document.getElementById("otpCode").value || "").trim();
   const otpMsg = document.getElementById("otpMsg");
-  if (!email || !code) { otpMsg.innerHTML = `<span style="color:var(--red)">Enter email and code.</span>`; return; }
+  const btn = document.getElementById("verifyOtpBtn");
+  if (!email || !code) { otpMsg.innerHTML = `<span style="color:var(--red)">Enter your email and the 6-digit code received.</span>`; return; }
+  
+  if (btn) { btn.disabled = true; btn.textContent = "Verifying..."; }
+
   try {
     const r = await API.post("/auth/verify-otp", { email, code });
-    otpMsg.innerHTML = `<span style="color:var(--green)">✅ ${esc(r.message)}</span>`;
+    otpMsg.innerHTML = `
+      <div style="background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);padding:.75rem;border-radius:6px;color:#34d399;margin-top:.5rem">
+        <strong>✅ Email Verified & Registered for Emergency SOS!</strong><br>
+        Your email is now verified. You will automatically receive urgent alerts whenever high landslide risks are detected in your monitored region.
+      </div>
+    `;
+    document.getElementById("otpCode").value = "";
   } catch (err) {
-    otpMsg.innerHTML = `<span style="color:var(--red)">${esc(err.message)}</span>`;
+    otpMsg.innerHTML = `<span style="color:var(--red)">Verification failed: ${esc(err.message)}</span>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Verify email"; }
   }
 }
 

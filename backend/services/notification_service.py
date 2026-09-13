@@ -97,20 +97,69 @@ def send_otp_email(recipient: str, otp_code: str, expiry_minutes: int = 10) -> d
 
 
 def send_alert_email(recipient: str, location: str, message: str, risk_score=None, risk_level=None):
-    subject = f"🚨 Landslide Guardian SOS Alert — {location}"
+    subject = f"🚨 URGENT LANDSLIDE SOS ALERT — {location} [{risk_level or 'HIGH RISK'}]"
     score_line = f"Calculated Risk: {risk_score}% ({risk_level})" if risk_score is not None else "Emergency SOS Notification"
+    ts = datetime.now(timezone.utc).strftime("%d %b %Y, %I:%M %p UTC")
 
-    body = f"""LANDSLIDE GUARDIAN — EARLY WARNING DISPATCH
-------------------------------------------------------------
-Target Location : {location}
-Status          : {score_line}
+    body = f"""================================================================================
+🚨 LANDSLIDE GUARDIAN — AUTOMATIC REGIONAL SOS DISPATCH
+================================================================================
+Target Sector   : {location}
+Alert Level     : {risk_level or 'HIGH/CRITICAL'}
+Geotech Risk    : {score_line}
+Timestamp       : {ts}
+Recipient       : {recipient} (Verified Resident / Community Monitor)
 
-ALERT DETAILS:
+--------------------------------------------------------------------------------
+⚠️ SENSOR & TELEMETRY WARNING SUMMARY:
+--------------------------------------------------------------------------------
 {message}
 
-------------------------------------------------------------
-This is an automated emergency verification alert from the Landslide Guardian System.
-Follow official local disaster-management and evacuation instructions.
+--------------------------------------------------------------------------------
+🛡️ IMMEDIATE ACTION PROTOCOL — WHAT YOU MUST DO RIGHT NOW:
+--------------------------------------------------------------------------------
+1. EVACUATE HIGH-RISK ZONES IMMEDIATELY:
+   • Move away from the direct path of steep slopes, cliffs, natural ravines, 
+     drainage gullies, and freshly exposed road-cut slopes.
+   • If indoors and sudden rumbling or shaking begins, move to the HIGHEST level 
+     of the building or the side facing AWAY from the hill slope.
+
+2. AVOID ALL HIGHWAY / MOUNTAIN TRANSIT:
+   • Mountain corridors in this sector (NH routes and hill bypasses) are subject 
+     to sudden rockfall, debris flows, and cut-slope collapses.
+   • Never attempt to cross flooded causeways or moving debris streams.
+
+3. RECOGNIZE IMMINENT WARNING SIGNS:
+   • New tension cracks appearing in the ground, walls, or pavements.
+   • Tilting trees, utility poles, or fences.
+   • Rapid muddying or sudden changes in stream water levels.
+   • Faint rumbling sounds that increase in volume.
+
+--------------------------------------------------------------------------------
+🎒 PREPARE YOUR EMERGENCY GRAB-AND-GO KIT:
+--------------------------------------------------------------------------------
+   [✓] Essential prescription medications, first aid kit, and water purification.
+   [✓] Crucial identity documents, property papers, and cash in a waterproof pouch.
+   [✓] High-lumen LED flashlight, battery bank, and battery-powered FM/AM radio.
+   [✓] Minimum 72-hour non-perishable food rations and 3 litres of drinking water per person.
+   [✓] Sturdy mountain footwear, warm rainproof clothing, and whistle for signaling.
+
+--------------------------------------------------------------------------------
+📞 EMERGENCY HELPLINES & HOW TO SEEK RESCUE:
+--------------------------------------------------------------------------------
+   • National Unified Emergency Helpline   : 112 (Police / Fire / Medical)
+   • State Disaster Management Authority   : 1070
+   • District Emergency Operations Centre  : 1077
+   • Ambulance Emergency Service           : 108
+   • National Disaster Response Force (NDRF): 011-24363260 / 9711077372
+
+Stay tuned to official disaster broadcasts via SACHET (NDMA) and local civil authorities.
+Do not return to evacuated slopes until local geological authorities declare the sector stable.
+
+================================================================================
+Landslide Guardian Autonomous Radar System · Northeast Regional Monitoring
+This message was triggered automatically by 15-minute regional IoT telemetry scans.
+================================================================================
 """
     return _send(recipient, subject, body)
 

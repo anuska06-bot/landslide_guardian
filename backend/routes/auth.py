@@ -67,17 +67,24 @@ async def send_otp(req: SendOtpRequest):
         "status": "NOT_CONFIGURED", "recipient": email,
     }
 
+    # Check delivery status
+    delivery_status = send_result.get("status")
+    if delivery_status == "SENT":
+        msg = f"A 6-digit verification code has been dispatched to {email}. Check your inbox (and spam folder)."
+    elif delivery_status == "AUTH_FAILED":
+        msg = "SMTP Authentication failed on server. Please check SMTP_USER and 16-char Google App Password."
+    elif delivery_status == "NOT_CONFIGURED":
+        msg = "SMTP is not configured on the backend server. Please configure SMTP_USER and SMTP_PASSWORD in backend environment."
+    else:
+        msg = send_result.get("error") or f"Email delivery failed ({delivery_status})."
+
     response = {
         "status": result["status"],
-        "message": result["message"],
-        "email_delivery": send_result.get("status"),
+        "message": msg,
+        "email_delivery": delivery_status,
         "smtp_configured": smtp_configured,
         "expires_in_minutes": otp_service.OTP_EXPIRY_MINUTES,
     }
-    # DEMO ONLY: surface the code when no real SMTP provider is configured.
-    if not smtp_configured and otp_code:
-        response["demo_otp"] = otp_code
-        response["message"] = f"Verification code: {otp_code} (demo — no SMTP configured; emails are simulated)."
     return response
 
 
