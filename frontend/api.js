@@ -37,7 +37,23 @@ const DEMO_LOCATIONS = [
   {"name": "Churachandpur, Manipur", "state": "Manipur", "lat": 24.3333, "lon": 93.6667, "district": "Churachandpur", "slope": 26.0},
   {"name": "Agartala, Tripura", "state": "Tripura", "lat": 23.8315, "lon": 91.2868, "district": "West Tripura", "slope": 12.0},
   {"name": "Baramura Range, Tripura", "state": "Tripura", "lat": 23.8750, "lon": 91.5650, "district": "Khowai", "slope": 28.0},
-  {"name": "Jampui Hills, Tripura", "state": "Tripura", "lat": 23.9500, "lon": 92.2833, "district": "North Tripura", "slope": 32.0}
+  {"name": "Jampui Hills, Tripura", "state": "Tripura", "lat": 23.9500, "lon": 92.2833, "district": "North Tripura", "slope": 32.0},
+  {"name": "Sela Pass Corridor, Arunachal Pradesh", "state": "Arunachal Pradesh", "lat": 27.5050, "lon": 92.1038, "district": "Tawang", "slope": 45.0},
+  {"name": "Bhalukpong-Bomdila Highway, Arunachal Pradesh", "state": "Arunachal Pradesh", "lat": 27.1833, "lon": 92.4833, "district": "West Kameng", "slope": 43.0},
+  {"name": "Roing-Mayodia Pass, Arunachal Pradesh", "state": "Arunachal Pradesh", "lat": 28.2333, "lon": 95.9167, "district": "Lower Dibang Valley", "slope": 44.0},
+  {"name": "Lachen-Lachung Valley, Sikkim", "state": "Sikkim", "lat": 27.7167, "lon": 88.5500, "district": "North Sikkim", "slope": 46.0},
+  {"name": "Nathu La Ridge Corridor, Sikkim", "state": "Sikkim", "lat": 27.3865, "lon": 88.8309, "district": "East Sikkim", "slope": 41.0},
+  {"name": "Chumukedima Bypass / Patkai, Nagaland", "state": "Nagaland", "lat": 25.7925, "lon": 93.7744, "district": "Dimapur", "slope": 38.0},
+  {"name": "Kohima-Mao Gate NH-2, Nagaland", "state": "Nagaland", "lat": 25.5000, "lon": 94.1333, "district": "Kohima", "slope": 36.0},
+  {"name": "Sonapur Tunnel NH-6, Meghalaya", "state": "Meghalaya", "lat": 25.1122, "lon": 92.3644, "district": "East Jaintia Hills", "slope": 45.0},
+  {"name": "Nongpoh-Umiam Expressway, Meghalaya", "state": "Meghalaya", "lat": 25.6833, "lon": 91.9167, "district": "Ri-Bhoi", "slope": 34.0},
+  {"name": "Imphal-Jiribam NH-37 Makru, Manipur", "state": "Manipur", "lat": 24.7833, "lon": 93.3500, "district": "Tamenglong", "slope": 42.0},
+  {"name": "Mao-Maram Corridor, Manipur", "state": "Manipur", "lat": 25.4333, "lon": 94.1000, "district": "Senapati", "slope": 38.0},
+  {"name": "Lumding-Badarpur / Jatinga, Assam", "state": "Assam", "lat": 25.1167, "lon": 92.9833, "district": "Dima Hasao", "slope": 41.0},
+  {"name": "Guwahati-Kamakhya Hill Slopes, Assam", "state": "Assam", "lat": 26.1667, "lon": 91.7056, "district": "Kamrup Metropolitan", "slope": 33.0},
+  {"name": "Hnahthial-Saiha Ridge, Mizoram", "state": "Mizoram", "lat": 22.9667, "lon": 92.9333, "district": "Hnahthial", "slope": 37.0},
+  {"name": "Champhai-Zokhawthar Border Highway, Mizoram", "state": "Mizoram", "lat": 23.3667, "lon": 93.3833, "district": "Champhai", "slope": 36.0},
+  {"name": "Ambassa-Manu Pass NH-8, Tripura", "state": "Tripura", "lat": 23.9167, "lon": 91.8500, "district": "Dhalai", "slope": 30.0}
 ];
 
 const API = {

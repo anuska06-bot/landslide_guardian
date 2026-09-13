@@ -3,7 +3,7 @@
 <title>Landslide Guardian — AI Early Warning System</title><link rel="stylesheet" href="css/style.css"></head>
 <body>
 <nav class="navbar"><a href="index.html" class="nav-brand"><span class="brand-mark">⛰️</span> Landslide Guardian</a>
-<ul class="nav-links"><li><a href="index.html" class="active">Home</a></li><li><a href="dashboard.html">Dashboard</a></li><li><a href="assessment.html">Risk Assessment</a></li><li><a href="map.html">Risk Map</a></li><li><a href="alerts.html">Alerts & SOS</a></li><li><a href="history.html">History</a></li></ul></nav>
+<ul class="nav-links"><li><a href="index.html" class="active">Home</a></li><li><a href="dashboard.html">Dashboard</a></li><li><a href="assessment.html">Risk Assessment</a></li><li><a href="map.html">Risk Map</a></li><li><a href="alerts.html">Alerts & SOS</a></li><li><a href="report.html">Report Hazard 📷</a></li><li><a href="history.html">History</a></li></ul></nav>
 
 <header class="hero"><div class="hero-inner"><div class="hero-grid"><div>
 <span class="eyebrow">🟢 Software-only SIH prototype · Live weather · NER</span>
@@ -305,5 +305,29 @@ async function renderLiveAlerts(){
    list.innerHTML=`<p style="color:var(--muted);font-size:.86rem">Telemetry cached. Start the backend on port 8000 for automatic monitoring updates across all 37 sub-locations.</p>`;
  }
 }
+
+  <!-- Mobile Bottom Navigation Bar for Android/iOS Phone View -->
+  <div class="mobile-bottom-nav">
+    <a href="index.html" class="mobile-nav-item active">
+      <span class="mobile-nav-icon">🏠</span>
+      <span class="mobile-nav-label">Home</span>
+    </a>
+    <a href="dashboard.html" class="mobile-nav-item">
+      <span class="mobile-nav-icon">📊</span>
+      <span class="mobile-nav-label">Dashboard</span>
+    </a>
+    <a href="assessment.html" class="mobile-nav-item">
+      <span class="mobile-nav-icon">⚡</span>
+      <span class="mobile-nav-label">Assess</span>
+    </a>
+    <a href="map.html" class="mobile-nav-item">
+      <span class="mobile-nav-icon">🗺️</span>
+      <span class="mobile-nav-label">Map</span>
+    </a>
+    <a href="report.html" class="mobile-nav-item">
+      <span class="mobile-nav-icon">📷</span>
+      <span class="mobile-nav-label">Report</span>
+    </a>
+  </div>
 
 </script></body></html>

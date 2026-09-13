@@ -147,6 +147,27 @@ class SOSBroadcastRequest(BaseModel):
     custom_message: Optional[str] = Field(default=None, max_length=1000)
 
 
+class TestEmailRequest(BaseModel):
+    email: str = Field(min_length=5, max_length=200)
+
+
 class AdminLoginRequest(BaseModel):
     username: str = Field(min_length=1, max_length=100)
     password: str = Field(min_length=1, max_length=200)
+
+
+class IncidentReportResponse(BaseModel):
+    id: str
+    reporter_name: str
+    phone_or_email: Optional[str] = None
+    location_name: str
+    latitude: float
+    longitude: float
+    hazard_type: str            # Tension Cracks, Road Mudslide, Rockfall, Slope Bulge, Retaining Wall Breach
+    severity: str               # LOW, MODERATE, HIGH, CRITICAL
+    road_status: str            # FULLY_OPEN, SINGLE_LANE, ESCORT_ONLY, BLOCKED
+    description: str
+    media_url: Optional[str] = None
+    media_type: Optional[str] = None  # image | video
+    timestamp: str
+    verified: bool = False

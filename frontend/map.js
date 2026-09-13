@@ -21,6 +21,7 @@ let gridLayerGroup = null;
 let sublocationsLayerGroup = null;
 let historicalLayerGroup = null;
 let sensorLayerGroup = null;
+let reportsLayerGroup = null;
 
 // Cached data
 let allRegions = [];
@@ -86,6 +87,7 @@ function initMap() {
   sublocationsLayerGroup = L.layerGroup().addTo(mapInstance);
   historicalLayerGroup = L.layerGroup().addTo(mapInstance);
   sensorLayerGroup = L.layerGroup().addTo(mapInstance);
+  reportsLayerGroup = L.layerGroup().addTo(mapInstance);
 
   // Dynamic zoom listener to adapt detail like modern weather apps
   mapInstance.on("zoomend", () => {
@@ -102,6 +104,7 @@ function initMap() {
 }
 
 async function loadBaseData() {
+  loadCrowdsourcedReports();
   try {
     const res = await API.get("/map/layers");
     allRegions = res.regions || [];
@@ -737,9 +740,62 @@ async function triggerLiveNow() {
   }
 }
 
+async function loadCrowdsourcedReports() {
+  try {
+    const res = await fetch("/api/reports/all?limit=50");
+    if (!res.ok) return;
+    const data = await res.json();
+    const reports = data.reports || [];
+    if (!reportsLayerGroup) return;
+    reportsLayerGroup.clearLayers();
+
+    reports.forEach(r => {
+      const roadColor = {
+        "BLOCKED": "#dc2626",
+        "SINGLE_LANE": "#d97706",
+        "ESCORT_ONLY": "#4f46e5",
+        "FULLY_OPEN": "#16a34a"
+      }[r.road_status] || "#d97706";
+
+      const iconHtml = `<div style="background:${roadColor};width:26px;height:26px;border-radius:50%;border:2px solid #fff;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.6);font-size:13px;cursor:pointer;">📷</div>`;
+      const customIcon = L.divIcon({
+        html: iconHtml,
+        className: "crowd-report-icon",
+        iconSize: [26, 26],
+        iconAnchor: [13, 13]
+      });
+
+      const marker = L.marker([r.latitude, r.longitude], { icon: customIcon });
+      let mediaPreview = "";
+      if (r.media_url) {
+        if (r.media_type === "video") {
+          mediaPreview = `<video src="${r.media_url}" controls style="width:100%;max-height:120px;margin-top:6px;border-radius:4px"></video>`;
+        } else {
+          mediaPreview = `<a href="${r.media_url}" target="_blank"><img src="${r.media_url}" style="width:100%;max-height:120px;object-fit:cover;margin-top:6px;border-radius:4px" /></a>`;
+        }
+      }
+
+      marker.bindPopup(`
+        <div style="font-family:Inter,sans-serif;min-width:190px">
+          <strong style="color:#0f172a;font-size:13px">${r.location_name}</strong><br>
+          <span style="font-size:11px;font-weight:700;color:${roadColor}">Road: ${r.road_status}</span> · <span style="font-size:11px;color:#64748b">${r.hazard_type}</span><br>
+          <span style="font-size:11px;color:#64748b">Severity: <strong>${r.severity}</strong></span>
+          ${r.description ? `<p style="font-size:11px;color:#334155;margin:4px 0 0 0">${r.description}</p>` : ""}
+          ${mediaPreview}
+          <div style="font-size:10px;color:#94a3b8;margin-top:4px">Reported by: ${r.reporter_name}</div>
+        </div>
+      `);
+      reportsLayerGroup.addLayer(marker);
+    });
+  } catch (err) {
+    console.warn("Could not load crowdsourced map reports:", err);
+  }
+}
+
 // Make functions globally accessible for inline HTML callbacks
 window.switchLayer = switchLayer;
 window.zoomToNER = zoomToNER;
 window.zoomToRegion = zoomToRegion;
 window.closeLocationPanel = closeLocationPanel;
+window.loadCrowdsourcedReports = loadCrowdsourcedReports;
 window.triggerLiveNow = triggerLiveNow;

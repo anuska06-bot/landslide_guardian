@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .database.mongodb import db_manager
-from .routes import alerts, assistant, dataset, environment, locations, monitor, risk, sensors, sos, admin, auth, pipeline
+from .routes import alerts, assistant, dataset, environment, locations, monitor, risk, sensors, sos, admin, auth, pipeline, reports
 
 logging.basicConfig(level=logging.INFO)
 
@@ -54,8 +54,13 @@ app.include_router(assistant.router, prefix="/api", tags=["Assistant"])
 app.include_router(monitor.router, prefix="/api", tags=["Automatic Monitoring"])
 app.include_router(pipeline.router, prefix="/api", tags=["Live Rainfall → Pore Pressure → Threshold Pipeline"])
 app.include_router(auth.router, prefix="/api", tags=["Email OTP Verification"])
+app.include_router(reports.router, prefix="/api", tags=["Crowdsourced Reports"])
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 
 @app.get("/api/health")
@@ -102,5 +107,8 @@ async def frontend_home():
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
 if __name__ == "__main__":
+    import os
     import uvicorn
-    uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=port, reload=True)
+

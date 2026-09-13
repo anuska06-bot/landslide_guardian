@@ -16,6 +16,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("registerForm").onsubmit = registerCitizen;
   document.getElementById("sendOtpBtn").onclick = sendOtp;
   document.getElementById("verifyOtpBtn").onclick = verifyOtp;
+  const testBtn = document.getElementById("sendTestEmailBtn");
+  if (testBtn) testBtn.onclick = sendTestEmail;
+  await checkSmtpStatus();
   await loadActiveAlerts();
   // LIVE automatic refresh of the active warnings feed.
   setInterval(loadActiveAlerts, 20000);
@@ -86,5 +89,71 @@ async function loadActiveAlerts() {
   } catch (e) {
     activeCountBadge.textContent = "Unavailable";
     alertsFeedContainer.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+  }
+}
+
+async function checkSmtpStatus() {
+  const badge = document.getElementById("smtpStatusBadge");
+  if (!badge) return;
+  try {
+    const config = await API.get("/config");
+    if (config.smtp_configured) {
+      badge.textContent = "SMTP Configured";
+      badge.className = "badge badge-low";
+    } else {
+      badge.textContent = "SMTP Missing (.env)";
+      badge.className = "badge badge-moderate";
+    }
+  } catch (err) {
+    badge.textContent = "Offline";
+  }
+}
+
+async function sendTestEmail() {
+  const emailInput = document.getElementById("testEmailInput");
+  const resultDiv = document.getElementById("testEmailResult");
+  const btn = document.getElementById("sendTestEmailBtn");
+  const email = (emailInput.value || "").trim();
+
+  if (!email) {
+    resultDiv.innerHTML = `<span style="color:var(--red)">Please enter a recipient email address.</span>`;
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Sending...";
+  resultDiv.innerHTML = `<span style="color:var(--muted)">Connecting to SMTP server and dispatching test message...</span>`;
+
+  try {
+    const r = await API.post("/sos/test-email", { email });
+    if (r.status === "SENT") {
+      resultDiv.innerHTML = `
+        <div style="background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);padding:.75rem;border-radius:6px;color:#34d399">
+          <strong>✅ Email Dispatched Successfully!</strong><br>
+          Sent via <strong>${esc(r.smtp_host)}:${esc(r.smtp_port)}</strong> to <strong>${esc(r.recipient)}</strong>.<br>
+          Check your inbox (and spam folder) for the test message.
+        </div>
+      `;
+    } else if (r.status === "NOT_CONFIGURED") {
+      resultDiv.innerHTML = `
+        <div style="background:rgba(234,179,8,.15);border:1px solid rgba(234,179,8,.3);padding:.75rem;border-radius:6px;color:#facc15">
+          <strong>⚠️ SMTP Credentials Not Set</strong><br>
+          ${esc(r.message)}<br>
+          <small>Add <code>SMTP_USER</code> and <code>SMTP_PASSWORD</code> in <code>backend/.env</code> or Railway variables.</small>
+        </div>
+      `;
+    } else {
+      resultDiv.innerHTML = `
+        <div style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);padding:.75rem;border-radius:6px;color:#f87171">
+          <strong>❌ Delivery Failed (${esc(r.status)})</strong><br>
+          ${esc(r.error || r.message || "Unknown error")}
+        </div>
+      `;
+    }
+  } catch (err) {
+    resultDiv.innerHTML = `<span style="color:var(--red)">Request error: ${esc(err.message)}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Send Test Email";
   }
 }

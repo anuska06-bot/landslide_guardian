@@ -1465,3 +1465,182 @@ textarea.form-control{resize:vertical}
 .meter-fill-critical{background:linear-gradient(90deg,#d12f2f,#ff4d4d)}
 .slope-subinfo{display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted);margin-top:.35rem}
 
+/* =========================================================
+   MOBILE BOTTOM NAVIGATION & RESPONSIVE TELEMETRY PARITY
+   ========================================================= */
+
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: rgba(13, 25, 21, 0.98);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(67, 209, 122, 0.25);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  justify-content: space-around;
+  align-items: center;
+  padding: 0 6px;
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #9aaea5;
+  text-decoration: none;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 4px 6px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  min-width: 52px;
+  flex: 1;
+}
+
+.mobile-nav-item .mobile-nav-icon {
+  font-size: 1.25rem;
+  line-height: 1.1;
+  margin-bottom: 2px;
+}
+
+.mobile-nav-item.active,
+.mobile-nav-item:hover {
+  color: #43d17a;
+  background: rgba(67, 209, 122, 0.12);
+}
+
+@media (max-width: 768px) {
+  body {
+    padding-bottom: 74px !important;
+  }
+
+  .mobile-bottom-nav {
+    display: flex !important;
+  }
+
+  .container {
+    padding: 1rem 0.85rem !important;
+  }
+
+  .navbar {
+    padding: 0.75rem 1rem !important;
+  }
+
+  .navbar .nav-links {
+    display: none !important;
+  }
+
+  .hero {
+    min-height: 520px;
+    padding: 2rem 0;
+  }
+
+  .hero h1 {
+    font-size: 2rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .hero-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+
+  .hero-alert {
+    justify-self: stretch !important;
+    width: 100% !important;
+  }
+
+  .btn-group {
+    flex-direction: column !important;
+    gap: 0.6rem !important;
+  }
+
+  .btn-group .btn {
+    width: 100% !important;
+    text-align: center;
+  }
+
+  .stat-strip {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
+    padding: 0.75rem !important;
+  }
+
+  .stat-strip .stat strong {
+    font-size: 1.35rem !important;
+  }
+
+  .stat-strip .stat span {
+    font-size: 0.68rem !important;
+  }
+
+  .grid-2, .grid-3, .grid-4 {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .slope-watch-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem !important;
+  }
+
+  .telemetry-strip {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .weather-days {
+    display: flex !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.5rem !important;
+    padding-bottom: 0.5rem;
+  }
+
+  .weather-day {
+    min-width: 80px !important;
+    flex-shrink: 0;
+  }
+
+  .criteria-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Table and formulas scroll horizontally on phone view */
+  .table-responsive, table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  pre, code, .calculation-box, .formula-card {
+    max-width: 100%;
+    overflow-x: auto;
+    word-break: break-word;
+  }
+
+  /* Touch-friendly inputs and buttons */
+  .btn, .form-control, select, button {
+    min-height: 44px;
+    font-size: 15px !important;
+  }
+
+  .capture-btn-group {
+    grid-template-columns: 1fr !important;
+  }
+
+  .assessment-metrics, .breakdown-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .card {
+    padding: 1rem !important;
+  }
+}
+

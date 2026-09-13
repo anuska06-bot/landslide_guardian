@@ -142,12 +142,14 @@ class DatabaseManager:
         self.notification_log = self.db["notification_log"]
         self.rainfall_records = self.db["rainfall_records"]
         self.otps = self.db["otps"]
+        self.incident_reports = self.db["incident_reports"]
 
     def _create_indexes(self):
         self.risk_assessments.create_index([("timestamp", -1)])
         self.alerts.create_index([("timestamp", -1)])
         self.alerts.create_index([("risk_score", -1)])
         self.citizens.create_index([("location", 1)])
+        self.incident_reports.create_index([("timestamp", -1)])
         self.sensor_readings.create_index([("timestamp", -1)])
         self.sensor_latest.create_index([("device_id", 1), ("section_id", 1)])
         self.notification_log.create_index([("timestamp", -1)])

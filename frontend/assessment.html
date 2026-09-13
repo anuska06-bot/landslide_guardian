@@ -3,7 +3,7 @@
 <title>Risk Assessment — Landslide Guardian</title><link rel="stylesheet" href="css/style.css"></head>
 <body>
 <nav class="navbar"><a href="index.html" class="nav-brand">⛰️ Landslide Guardian</a><ul class="nav-links">
-<li><a href="index.html">Home</a></li><li><a href="dashboard.html">Dashboard</a></li><li><a href="assessment.html" class="active">Risk Assessment</a></li><li><a href="map.html">Risk Map</a></li><li><a href="alerts.html">Alerts & SOS</a></li><li><a href="history.html">History</a></li></ul></nav>
+<li><a href="index.html">Home</a></li><li><a href="dashboard.html">Dashboard</a></li><li><a href="assessment.html" class="active">Risk Assessment</a></li><li><a href="map.html">Risk Map</a></li><li><a href="alerts.html">Alerts & SOS</a></li><li><a href="report.html">Report Hazard 📷</a></li><li><a href="history.html">History</a></li></ul></nav>
 
 <main class="container"><div class="section" style="padding-top:0"><span class="section-kicker">Explainable prediction</span><h1 class="section-title">AI Landslide Risk Assessment</h1><p class="section-copy">Run a <strong>Live Now</strong> assessment using real regional weather: live rainfall → estimated pore pressure → region-specific threshold → risk + ML. Tilt is treated as a hardware-only sensor and is never fabricated.</p></div>
 
@@ -77,5 +77,31 @@
 <div id="thresholdBox" style="margin-top:1rem"></div>
 <div id="resSosOption" class="sos-box" style="display:none"><button class="btn btn-danger" style="width:100%" onclick="dispatchDirectSOS()">🚨 HIGH/CRITICAL — Notify Admin to Dispatch Regional SOS</button><small style="display:block;color:var(--muted);margin-top:.4rem">Manual dispatch is admin-only. An administrator must be signed in to send the regional email to verified residents.</small></div>
 </div></div></div>
-</main><footer></footer>
+</main>
+
+<!-- Mobile Bottom Navigation Bar for Android/iOS Phone View -->
+<div class="mobile-bottom-nav">
+  <a href="index.html" class="mobile-nav-item">
+    <span class="mobile-nav-icon">🏠</span>
+    <span class="mobile-nav-label">Home</span>
+  </a>
+  <a href="dashboard.html" class="mobile-nav-item">
+    <span class="mobile-nav-icon">📊</span>
+    <span class="mobile-nav-label">Dashboard</span>
+  </a>
+  <a href="assessment.html" class="mobile-nav-item active">
+    <span class="mobile-nav-icon">⚡</span>
+    <span class="mobile-nav-label">Assess</span>
+  </a>
+  <a href="map.html" class="mobile-nav-item">
+    <span class="mobile-nav-icon">🗺️</span>
+    <span class="mobile-nav-label">Map</span>
+  </a>
+  <a href="report.html" class="mobile-nav-item">
+    <span class="mobile-nav-icon">📷</span>
+    <span class="mobile-nav-label">Report</span>
+  </a>
+</div>
+
+<footer></footer>
 <script src="api.js"></script><script src="ui.js"></script><script src="assessment.js"></script></body></html>

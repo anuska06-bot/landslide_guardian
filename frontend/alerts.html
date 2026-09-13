@@ -15,6 +15,7 @@
       <li><a href="assessment.html">Risk Assessment</a></li>
       <li><a href="map.html">Risk Map</a></li>
       <li><a href="alerts.html" class="active">Alerts & SOS</a></li>
+      <li><a href="report.html">Report Hazard 📷</a></li>
       <li><a href="history.html">History</a></li>
     </ul>
   </nav>
@@ -72,14 +73,88 @@
       <a href="admin-login.html" class="btn btn-danger" style="display:inline-block;margin-top:.25rem">🔐 Open Admin Console</a>
     </div>
 
+    <!-- SMTP Email Diagnostic & Live Test Card -->
     <div class="card" style="margin-top:1.25rem">
       <div class="card-header">
-        <span class="card-title">Active warnings</span>
+        <span class="card-title">✉️ SMTP Email Live Diagnostic & Test</span>
+        <span class="badge badge-low" id="smtpStatusBadge">Checking Config</span>
+      </div>
+      <p class="section-copy" style="font-size:.84rem">
+        Verify that your Gmail, Outlook, or custom SMTP server is delivering emails properly. Enter your email to send an immediate live test dispatch.
+      </p>
+      <div style="display:flex;gap:.5rem;margin-top:.75rem;flex-wrap:wrap">
+        <input type="email" id="testEmailInput" class="form-control" placeholder="Enter recipient email (e.g. your email)" style="flex:1;min-width:220px">
+        <button id="sendTestEmailBtn" class="btn btn-primary" style="white-space:nowrap">Send Test Email</button>
+      </div>
+      <div id="testEmailResult" style="margin-top:.75rem;font-size:.86rem"></div>
+    </div>
+
+    <!-- Citizen Action Advisory & Safety Guidelines -->
+    <div class="card" style="margin-top:1.25rem">
+      <div class="card-header">
+        <span class="card-title">🛡️ Citizen Action Advisory Protocols</span>
+        <span class="badge badge-low">NDMA Guidelines</span>
+      </div>
+      <div class="grid-3" style="margin-top:.75rem">
+        <div style="background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);padding:.85rem;border-radius:8px">
+          <strong style="color:var(--yellow);font-size:.9rem">🟡 Moderate Alert Phase</strong>
+          <ul style="margin:0.5rem 0 0 1rem;font-size:.82rem;color:var(--muted);line-height:1.6">
+            <li>Inspect slope retaining walls and drains for clogging.</li>
+            <li>Look for new ground fissures or door/window sticking.</li>
+            <li>Keep battery bank and emergency radio charged.</li>
+          </ul>
+        </div>
+        <div style="background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);padding:.85rem;border-radius:8px">
+          <strong style="color:var(--orange);font-size:.9rem">🟠 High Risk Protocol</strong>
+          <ul style="margin:0.5rem 0 0 1rem;font-size:.82rem;color:var(--muted);line-height:1.6">
+            <li>Avoid mountain highway travel unless emergency authorized.</li>
+            <li>Sleep in rooms furthest from the upslope hill face.</li>
+            <li>Pack Grab-and-Go kit (medicines, documents, torch).</li>
+          </ul>
+        </div>
+        <div style="background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);padding:.85rem;border-radius:8px">
+          <strong style="color:var(--red);font-size:.9rem">🔴 Critical / SOS Trigger</strong>
+          <ul style="margin:0.5rem 0 0 1rem;font-size:.82rem;color:var(--muted);line-height:1.6">
+            <li><strong>IMMEDIATE EVACUATION:</strong> Move to designated shelters.</li>
+            <li>Listen for loud rumbling sounds or cracking trees.</li>
+            <li>Dial District Emergency Operations Center (1077 / 112).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:1.25rem">
+      <div class="card-header">
+        <span class="card-title">Active warnings & Regional Radar</span>
         <span class="badge badge-high" id="activeCountBadge">Loading</span>
       </div>
       <div id="alertsFeedContainer"></div>
     </div>
   </main>
+
+  <!-- Mobile Bottom Navigation Bar for Android/iOS Phone View -->
+  <div class="mobile-bottom-nav">
+    <a href="index.html" class="mobile-nav-item">
+      <span class="mobile-nav-icon">🏠</span>
+      <span class="mobile-nav-label">Home</span>
+    </a>
+    <a href="dashboard.html" class="mobile-nav-item">
+      <span class="mobile-nav-icon">📊</span>
+      <span class="mobile-nav-label">Dashboard</span>
+    </a>
+    <a href="assessment.html" class="mobile-nav-item">
+      <span class="mobile-nav-icon">⚡</span>
+      <span class="mobile-nav-label">Assess</span>
+    </a>
+    <a href="map.html" class="mobile-nav-item">
+      <span class="mobile-nav-icon">🗺️</span>
+      <span class="mobile-nav-label">Map</span>
+    </a>
+    <a href="report.html" class="mobile-nav-item">
+      <span class="mobile-nav-icon">📷</span>
+      <span class="mobile-nav-label">Report</span>
+    </a>
+  </div>
 
   <footer></footer>
   <script src="api.js"></script>

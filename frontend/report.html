@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+  <title>Report Hazard & Road Status — Landslide Guardian</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .media-preview-container {
+      margin-top: .75rem;
+      display: none;
+      text-align: center;
+      background: var(--bg-alt);
+      padding: .5rem;
+      border-radius: var(--radius-sm);
+      border: 1px dashed var(--border-color);
+    }
+    .media-preview-container img,
+    .media-preview-container video {
+      max-width: 100%;
+      max-height: 240px;
+      border-radius: 4px;
+      object-fit: cover;
+    }
+    .file-input-wrapper {
+      position: relative;
+      overflow: hidden;
+      display: inline-block;
+      width: 100%;
+    }
+    .capture-btn-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .5rem;
+      margin-top: .5rem;
+    }
+    .report-card-item {
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .report-card-item:last-child {
+      border-bottom: none;
+    }
+    .report-media-thumb {
+      width: 100%;
+      max-height: 180px;
+      object-fit: cover;
+      border-radius: var(--radius-sm);
+      margin-top: .5rem;
+      cursor: pointer;
+    }
+    .badge-blocked { background: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
+    .badge-single-lane { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+    .badge-escort-only { background: #e0e7ff; color: #3730a3; border: 1px solid #818cf8; }
+    .badge-fully-open { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <a href="index.html" class="nav-brand">⛰️ Landslide Guardian</a>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="dashboard.html">Dashboard</a></li>
+      <li><a href="assessment.html">Risk Assessment</a></li>
+      <li><a href="map.html">Risk Map</a></li>
+      <li><a href="alerts.html">Alerts & SOS</a></li>
+      <li><a href="report.html" class="active">Report Hazard 📷</a></li>
+      <li><a href="history.html">History</a></li>
+    </ul>
+  </nav>
+
+  <main class="container">
+    <div class="section" style="padding-top:0">
+      <span class="section-kicker">Citizen & Field Official Portal</span>
+      <h1 class="section-title">Upload Hazard & Road Connectivity Alert</h1>
+      <p class="section-copy">
+        Are you on the ground? Capture photos or videos of ground cracks, rockfalls, active mudflows, or blocked highways.
+        Field submissions instantly broadcast road status to regional radar dashboards and disaster response authorities.
+      </p>
+    </div>
+
+    <div class="grid-2">
+      <!-- Submission Form Card -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📷 Field Incident Upload</span>
+          <span class="badge badge-low" id="gpsBadge">GPS Ready</span>
+        </div>
+
+        <form id="incidentForm">
+          <!-- Reporter Info -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+            <label class="metric-label" for="reporterName">Your Name / Title
+              <input id="reporterName" class="form-control" placeholder="Citizen / Field Official" required>
+            </label>
+            <label class="metric-label" for="phoneOrEmail">Phone or Email
+              <input id="phoneOrEmail" class="form-control" placeholder="Optional for updates">
+            </label>
+          </div>
+
+          <!-- Location Name & GPS Trigger -->
+          <label class="metric-label" for="locationName" style="margin-top:.75rem">Location / Corridor / Highway Name
+            <input id="locationName" class="form-control" placeholder="e.g. NH-10 near 29th Mile, Gangtok" required list="locationsDatalist">
+            <datalist id="locationsDatalist"></datalist>
+          </label>
+
+          <!-- Coordinates -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.5rem">
+            <label class="metric-label" for="reportLat">Latitude
+              <input id="reportLat" class="form-control" type="number" step="0.0001" placeholder="27.3389" required>
+            </label>
+            <label class="metric-label" for="reportLon">Longitude
+              <input id="reportLon" class="form-control" type="number" step="0.0001" placeholder="88.6065" required>
+            </label>
+          </div>
+
+          <button type="button" id="btnGpsAuto" class="btn btn-secondary" style="width:100%;margin-top:.5rem;display:flex;align-items:center;justify-content:center;gap:.5rem">
+            📍 Auto-Detect Current GPS Coordinates
+          </button>
+
+          <!-- Hazard Type & Severity -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.75rem">
+            <label class="metric-label" for="hazardType">Hazard Type
+              <select id="hazardType" class="form-control">
+                <option value="Tension Cracks">Tension Cracks (Fissures)</option>
+                <option value="Active Mudflow">Active Mudflow / Slump</option>
+                <option value="Rockfall">Rockfall / Falling Boulders</option>
+                <option value="Retaining Wall Bulge">Retaining Wall Failure</option>
+                <option value="Highway Washout">Highway Washout / Cave-in</option>
+                <option value="Debris on Road">Debris on Road Surface</option>
+              </select>
+            </label>
+
+            <label class="metric-label" for="severity">Severity Level
+              <select id="severity" class="form-control">
+                <option value="LOW">LOW — Noticeable creep</option>
+                <option value="MODERATE" selected>MODERATE — Fissures / small slips</option>
+                <option value="HIGH">HIGH — Active sliding / lane hazard</option>
+                <option value="CRITICAL">CRITICAL — Imminent disaster</option>
+              </select>
+            </label>
+          </div>
+
+          <!-- Road Connectivity Status -->
+          <label class="metric-label" for="roadStatus" style="margin-top:.75rem">Road Connectivity Status
+            <select id="roadStatus" class="form-control">
+              <option value="FULLY_OPEN">🟢 FULLY OPEN — Normal traffic flow</option>
+              <option value="SINGLE_LANE" selected>🟡 SINGLE LANE — Slow alternating passage</option>
+              <option value="ESCORT_ONLY">🔵 ESCORT ONLY — 4x4 / Emergency vehicles</option>
+              <option value="BLOCKED">🔴 BLOCKED — Impassable to all vehicles</option>
+            </select>
+          </label>
+
+          <!-- Description -->
+          <label class="metric-label" for="description" style="margin-top:.75rem">Description & Landmarks
+            <textarea id="description" class="form-control" rows="3" placeholder="Describe the crack width, water seepage, whether earth is actively shifting, nearest milestone or bridge..."></textarea>
+          </label>
+
+          <!-- Camera Capture / File Upload -->
+          <div style="margin-top:1rem">
+            <label class="metric-label" style="display:block">Photo / Video Evidence</label>
+            <div class="capture-btn-group">
+              <!-- Native Phone Camera Trigger -->
+              <label class="btn btn-secondary" style="margin:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
+                📷 Open Camera
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
+              </label>
+              <!-- Standard File/Video Picker -->
+              <label class="btn btn-secondary" style="margin:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
+                📁 Pick File / Video
+                <input type="file" id="fileInput" accept="image/*,video/*" style="display:none">
+              </label>
+            </div>
+
+            <!-- Media Preview -->
+            <div id="mediaPreview" class="media-preview-container">
+              <div id="previewContent"></div>
+              <button type="button" id="removeMediaBtn" class="btn btn-sm btn-secondary" style="margin-top:.5rem">Remove Media</button>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" id="submitReportBtn" class="btn btn-primary" style="width:100%;margin-top:1.25rem;padding:.75rem">
+            🚀 Submit Geo-Tagged Field Report
+          </button>
+        </form>
+
+        <div id="reportStatusMsg" style="margin-top:.75rem"></div>
+      </div>
+
+      <!-- Live Crowdsourced Radar Feed -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📡 Live Ground Reports Radar</span>
+          <span class="badge badge-high" id="reportCountBadge">0 Reports</span>
+        </div>
+        <p class="section-copy" style="font-size:.85rem">
+          Verified and active observations sent by travelers, border road patrols, and residents across Northeast India corridors.
+        </p>
+
+        <div id="recentReportsList" style="margin-top:.5rem;max-height:680px;overflow-y:auto">
+          <div style="text-align:center;padding:2rem;color:var(--text-muted)">
+            Loading recent field reports...
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Mobile Bottom Navigation Bar for Android/iOS Phone View -->
+  <div class="mobile-bottom-nav">
+    <a href="index.html" class="mobile-nav-item">
+      <span class="mobile-nav-icon">🏠</span>
+      <span class="mobile-nav-label">Home</span>
+    </a>
+    <a href="dashboard.html" class="mobile-nav-item">
+      <span class="mobile-nav-icon">📊</span>
+      <span class="mobile-nav-label">Dashboard</span>
+    </a>
+    <a href="assessment.html" class="mobile-nav-item">
+      <span class="mobile-nav-icon">⚡</span>
+      <span class="mobile-nav-label">Assess</span>
+    </a>
+    <a href="map.html" class="mobile-nav-item">
+      <span class="mobile-nav-icon">🗺️</span>
+      <span class="mobile-nav-label">Map</span>
+    </a>
+    <a href="report.html" class="mobile-nav-item active">
+      <span class="mobile-nav-icon">📷</span>
+      <span class="mobile-nav-label">Report</span>
+    </a>
+  </div>
+
+  <footer class="footer">
+    <p>Landslide Guardian — Smart India Hackathon (SIH) Real-time Landslide Early Warning System</p>
+  </footer>
+
+  <script src="api.js"></script>
+  <script src="report.js"></script>
+</body>
+</html>

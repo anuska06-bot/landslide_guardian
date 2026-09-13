@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Header
 from ..database.mongodb import db_manager, clean_document
-from ..models.schemas import CitizenRegisterRequest, SOSBroadcastRequest
+from ..models.schemas import CitizenRegisterRequest, SOSBroadcastRequest, TestEmailRequest
 from ..services.monitor import find_verified_recipients
-from ..services.notification_service import dispatch_email_sos
+from ..services.notification_service import dispatch_email_sos, send_plain_email, _smtp_configured, _get_smtp_config
 
 router = APIRouter()
 
@@ -60,3 +60,47 @@ async def dispatch_sos_alert(req: SOSBroadcastRequest, authorization: str | None
         result["status"] = "NO_VERIFIED_RECIPIENTS"
         result["note"] = "No EMAIL-VERIFIED residents registered for this region yet. Register and verify residents to enable SOS."
     return result
+
+
+@router.post("/sos/test-email")
+async def test_email(req: TestEmailRequest):
+    """
+    Diagnostic endpoint to send a sample alert message to any recipient email,
+    confirming that the SMTP host, user, and App Password are functioning properly.
+    """
+    host, user, password, port, sender = _get_smtp_config()
+    smtp_ok = _smtp_configured()
+
+    if not smtp_ok:
+        return {
+            "status": "NOT_CONFIGURED",
+            "message": "SMTP credentials missing.",
+            "diagnostics": {
+                "smtp_host": host or "Not set",
+                "smtp_port": port,
+                "smtp_user": user or "Missing",
+                "smtp_password_set": bool(password),
+                "guide": "Set SMTP_USER and SMTP_PASSWORD (Google App Password) in backend/.env or Railway variables."
+            }
+        }
+
+    subject = "⛰️ Landslide Guardian — SMTP Diagnostic Test"
+    body = (
+        "LANDSLIDE GUARDIAN — EMAIL DIAGNOSTIC TEST\n"
+        "==========================================\n\n"
+        "Hello,\n\n"
+        "This is an automated test message from your Landslide Guardian system.\n"
+        "If you are reading this, your SMTP connection and authentication succeeded!\n\n"
+        f"Server Host : {host}:{port}\n"
+        f"Sender User : {user}\n"
+        f"Recipient   : {req.email}\n"
+        "System      : SIH Landslide Early Warning System\n\n"
+        "Emergency SOS dispatches and citizen OTP verifications are now active."
+    )
+
+    res = send_plain_email(req.email, subject, body)
+    res["smtp_host"] = host
+    res["smtp_port"] = port
+    res["smtp_user"] = user
+    return res
+
