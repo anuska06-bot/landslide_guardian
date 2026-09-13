@@ -70,19 +70,20 @@ async def test_email(req: TestEmailRequest):
     Diagnostic endpoint to send a sample alert message to any recipient email,
     confirming that the SMTP host, user, and App Password are functioning properly.
     """
-    host, user, password, port, sender = _get_smtp_config()
+    host, user, password, port, sender, resend_key, brevo_key = _get_smtp_config()
     smtp_ok = _smtp_configured()
 
     if not smtp_ok:
         return {
             "status": "NOT_CONFIGURED",
-            "message": "SMTP credentials missing.",
+            "message": "Email credentials missing.",
             "diagnostics": {
                 "smtp_host": host or "Not set",
                 "smtp_port": port,
                 "smtp_user": user or "Missing",
                 "smtp_password_set": bool(password),
-                "guide": "Set SMTP_USER and SMTP_PASSWORD (Google App Password) in backend/.env or Railway variables."
+                "resend_configured": bool(resend_key),
+                "guide": "Set RESEND_API_KEY (recommended for Railway) or SMTP_USER/SMTP_PASSWORD in Railway variables."
             }
         }
 

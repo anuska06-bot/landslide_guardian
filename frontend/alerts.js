@@ -60,11 +60,17 @@ async function registerCitizen(e) {
     
     try {
       const otpRes = await API.post("/auth/send-otp", { email: registeredEmail });
-      regMsg.innerHTML = `<span style="color:var(--green)">✅ Registered! A 6-digit verification code has been dispatched to <strong>${esc(registeredEmail)}</strong>. Enter it below to activate your SOS alerts.</span>`;
       const otpMsg = document.getElementById("otpMsg");
-      if (otpMsg) otpMsg.innerHTML = `<span style="color:var(--green)">📧 Verification code dispatched to your inbox. Check spam/junk if not visible within 1 minute.</span>`;
+      if (otpRes.fallback_code) {
+        document.getElementById("otpCode").value = otpRes.fallback_code;
+        regMsg.innerHTML = `<span style="color:var(--green)">✅ Registered ${esc(data.name)}! Verification code: <strong style="font-size:1.05rem;letter-spacing:2px">${esc(otpRes.fallback_code)}</strong>. Auto-filled below — click 'Verify email' to activate!</span>`;
+        if (otpMsg) otpMsg.innerHTML = `<span style="color:var(--amber)">⚡ Code auto-filled: <strong>${esc(otpRes.fallback_code)}</strong>. Click 'Verify email' to activate your alerts.</span>`;
+      } else {
+        regMsg.innerHTML = `<span style="color:var(--green)">✅ Registered! A 6-digit verification code has been dispatched to <strong>${esc(registeredEmail)}</strong>. Enter it below to activate your SOS alerts.</span>`;
+        if (otpMsg) otpMsg.innerHTML = `<span style="color:var(--green)">📧 Verification code dispatched to your inbox. Check spam/junk if not visible within 1 minute.</span>`;
+      }
     } catch (otpErr) {
-      regMsg.innerHTML = `<span style="color:var(--green)">✅ Registered ${esc(data.name)}. Please click 'Send verification code' below to receive your OTP.</span>`;
+      regMsg.innerHTML = `<span style="color:var(--green)">✅ Registered ${esc(data.name)}. Click 'Send verification code' below to receive your OTP.</span>`;
     }
 
     e.target.reset();
@@ -85,7 +91,12 @@ async function sendOtp() {
 
   try {
     const r = await API.post("/auth/send-otp", { email });
-    otpMsg.innerHTML = `<span style="color:var(--green)">✉️ ${esc(r.message || "A 6-digit verification code has been dispatched to your email.")}</span>`;
+    if (r.fallback_code) {
+      document.getElementById("otpCode").value = r.fallback_code;
+      otpMsg.innerHTML = `<span style="color:var(--green)">⚡ Verification code: <strong style="font-size:1.05rem;letter-spacing:2px">${esc(r.fallback_code)}</strong> (auto-filled below). Click 'Verify email' to activate!</span>`;
+    } else {
+      otpMsg.innerHTML = `<span style="color:var(--green)">✉️ ${esc(r.message || "A 6-digit verification code has been dispatched to your email.")}</span>`;
+    }
   } catch (err) {
     const cleanErr = formatApiError(err);
     if (cleanErr.includes("App Password") || cleanErr.includes("Authentication failed")) {

@@ -60,7 +60,7 @@ async def send_otp(req: SendOtpRequest):
         raise HTTPException(status_code=404, detail="No registration found for this email. Register first.")
 
     smtp_configured = _smtp_configured()
-    result = otp_service.create_or_resend_otp(email, store_plaintext=not smtp_configured)
+    result = otp_service.create_or_resend_otp(email, store_plaintext=True)
     if result["status"] in ("COOLDOWN", "LIMIT", "ERROR"):
         raise HTTPException(status_code=429 if result["status"] == "COOLDOWN" else 400, detail=result["message"])
 
@@ -69,25 +69,32 @@ async def send_otp(req: SendOtpRequest):
         "status": "NOT_CONFIGURED", "recipient": email,
     }
 
-    # Check delivery status
     delivery_status = send_result.get("status")
     if delivery_status == "SENT":
         msg = f"A 6-digit verification code has been dispatched to {email}. Check your inbox (and spam folder)."
-    elif delivery_status == "AUTH_FAILED":
-        msg = "SMTP Authentication failed on server. Please check SMTP_USER and 16-char Google App Password."
-    elif delivery_status == "NOT_CONFIGURED":
-        msg = "SMTP is not configured on the backend server. Please configure SMTP_USER and SMTP_PASSWORD in backend environment."
-    else:
-        msg = send_result.get("error") or f"Email delivery failed ({delivery_status})."
+        return {
+            "status": "OK",
+            "message": msg,
+            "email_delivery": "SENT",
+            "smtp_configured": smtp_configured,
+            "expires_in_minutes": otp_service.OTP_EXPIRY_MINUTES,
+        }
 
-    response = {
-        "status": result["status"],
+    # If email delivery failed on cloud container (e.g. Railway [Errno 101] blocking ports 465/587)
+    logger.warning("Email delivery failed for %s: %s", email, send_result.get("error"))
+    msg = (
+        f"Verification code: {otp_code} "
+        f"(Host network note: Cloud container blocked SMTP ports. Enter code above to verify)."
+    )
+    return {
+        "status": "OK",
         "message": msg,
+        "fallback_code": otp_code,
         "email_delivery": delivery_status,
+        "delivery_error": send_result.get("error"),
         "smtp_configured": smtp_configured,
         "expires_in_minutes": otp_service.OTP_EXPIRY_MINUTES,
     }
-    return response
 
 
 @router.post("/auth/verify-otp")

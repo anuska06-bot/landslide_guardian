@@ -6,6 +6,7 @@ import smtplib
 from email.message import EmailMessage
 from datetime import datetime, timezone
 from pathlib import Path
+import httpx
 from dotenv import load_dotenv
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -45,31 +46,68 @@ class IPv4SMTP_SSL(smtplib.SMTP_SSL):
 
 
 def _get_smtp_config():
+    resend_key = os.getenv("RESEND_API_KEY", "").strip()
+    brevo_key = os.getenv("BREVO_API_KEY", "").strip()
     host = os.getenv("SMTP_HOST") or os.getenv("SMTP_SERVER", "smtp.gmail.com")
     user = os.getenv("SMTP_USER") or os.getenv("SMTP_EMAIL", "")
     password = os.getenv("SMTP_PASSWORD", "")
     port = int(os.getenv("SMTP_PORT", "465"))  # Default to 465 SSL for high reliability on cloud containers
-    sender = os.getenv("ALERT_FROM_EMAIL") or user
-    return host, user, password, port, sender
+    sender = os.getenv("ALERT_FROM_EMAIL") or user or "Landslide Guardian <onboarding@resend.dev>"
+    return host, user, password, port, sender, resend_key, brevo_key
 
 def _smtp_configured():
-    host, user, password, _, _ = _get_smtp_config()
-    return bool(host and user and password)
+    host, user, password, _, _, resend_key, brevo_key = _get_smtp_config()
+    return bool(resend_key or brevo_key or (host and user and password))
+
+
+def _send_via_resend(api_key: str, sender: str, recipient: str, subject: str, body: str) -> dict:
+    try:
+        from_email = sender if ("@" in sender and not sender.endswith("@gmail.com")) else "Landslide Guardian <onboarding@resend.dev>"
+        res = httpx.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "from": from_email,
+                "to": [recipient],
+                "subject": subject,
+                "text": body,
+            },
+            timeout=12,
+        )
+        if res.status_code in (200, 201):
+            data = res.json()
+            print(f"[RESEND SUCCESS] Email sent via HTTP API to {recipient} (id: {data.get('id')})")
+            return {"status": "SENT", "recipient": recipient, "provider": "resend", "id": data.get("id")}
+        else:
+            err = res.text
+            print(f"[RESEND ERROR] Status {res.status_code}: {err}")
+            return {"status": "FAILED", "recipient": recipient, "error": f"Resend API error: {err}"}
+    except Exception as exc:
+        return {"status": "FAILED", "recipient": recipient, "error": f"Resend HTTP request failed: {exc}"}
 
 
 def _send(recipient: str, subject: str, body: str) -> dict:
-    host, user, password, port, sender = _get_smtp_config()
+    host, user, password, port, sender, resend_key, brevo_key = _get_smtp_config()
+
+    target_recipient = recipient.strip()
+
+    # 1. Primary Cloud HTTP API: Resend (Port 443 — NEVER blocked by Railway)
+    if resend_key:
+        resend_res = _send_via_resend(resend_key, sender, target_recipient, subject, body)
+        if resend_res["status"] == "SENT":
+            return resend_res
+
+    # 2. Check if SMTP credentials exist
     if not (user and password):
-        print(f"[SMTP WARNING] Credentials missing. Simulated send to: {recipient}")
+        print(f"[SMTP WARNING] Credentials missing. Simulated send to: {target_recipient}")
         return {
             "status": "NOT_CONFIGURED",
-            "recipient": recipient,
-            "message": "SMTP credentials (SMTP_USER and SMTP_PASSWORD) are not configured in backend/.env or Railway variables."
+            "recipient": target_recipient,
+            "message": "SMTP credentials (SMTP_USER/SMTP_PASSWORD) or RESEND_API_KEY are not configured in environment."
         }
 
     clean_password = password.strip().replace(" ", "")
     clean_user = user.strip()
-    target_recipient = recipient.strip()
 
     msg = EmailMessage()
     msg["Subject"] = subject
