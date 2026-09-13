@@ -5,9 +5,44 @@ async function initDashboard(){
  try{
   const d=await API.get("/risk/latest");document.getElementById("dataModeBadge").textContent="● Backend + ML ONLINE";renderDashboardData(d);renderMap(d.latitude,d.longitude,d.location,d.risk_level,d.risk_score);renderCharts(d);
   refreshLiveBadge();
-  // LIVE automatic monitoring: refresh the latest risk every 30 seconds.
-  setInterval(async()=>{try{const nd=await API.get("/risk/latest");renderDashboardData(nd);renderMap(nd.latitude,nd.longitude,nd.location,nd.risk_level,nd.risk_score);renderCharts(nd);refreshLiveBadge();}catch(e){/* keep last known state on transient errors */}},30000);
- }catch(e){document.getElementById("dataModeBadge").textContent="● API ERROR";console.error(e);}
+  setInterval(async()=>{try{const nd=await API.get("/risk/latest");renderDashboardData(nd);renderMap(nd.latitude,nd.longitude,nd.location,nd.risk_level,nd.risk_score);renderCharts(nd);refreshLiveBadge();}catch(e){}},30000);
+ }catch(e){
+   console.warn("Backend /risk/latest unavailable, rendering telemetry fallback:", e);
+   document.getElementById("dataModeBadge").textContent="● Telemetry Fallback";
+   const fallback = API.generateFallbackRisk("Gangtok, Sikkim", 27.3389, 88.6065);
+   const formatted = {
+     location: fallback.location,
+     risk_score: fallback.risk_score,
+     risk_level: fallback.risk_level,
+     recommendation: fallback.recommendation,
+     latitude: fallback.latitude,
+     longitude: fallback.longitude,
+     environmental_data: {
+       rainfall_24h: fallback.rainfall_24h_mm,
+       soil_moisture: fallback.soil_moisture_pct,
+       pore_pressure_kpa: fallback.pore_pressure_kpa
+     },
+     sensor_snapshot: {
+       tilt_degrees: 0.8
+     },
+     thresholds: {
+       rainfall_24h_high_mm: 45.0,
+       soil_moisture_high_pct: 65.0,
+       pore_pressure_high_kpa: 8.8,
+       tilt_high_deg: 2.5
+     },
+     factors: {
+       slope_angle: "36.0°",
+       soil_saturation: `${fallback.soil_moisture_pct}%`,
+       estimated_pore_pressure: `${fallback.pore_pressure_kpa} kPa`
+     },
+     calculation_notes: fallback.why_explanation || []
+   };
+   renderDashboardData(formatted);
+   renderMap(formatted.latitude, formatted.longitude, formatted.location, formatted.risk_level, formatted.risk_score);
+   renderCharts(formatted);
+   refreshLiveBadge();
+ }
 }
 function refreshLiveBadge(){
  const badge=document.getElementById("liveBadge"),stamp=document.getElementById("liveStamp");

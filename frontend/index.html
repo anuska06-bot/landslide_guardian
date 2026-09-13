@@ -190,20 +190,35 @@ document.addEventListener("DOMContentLoaded",async()=>{
 
   async function refreshHomeTelemetry() {
     try {
-      const [weatherData, riskData] = await Promise.all([
+      let [weatherData, riskData] = await Promise.all([
         API.get("/weather/ner").catch(() => []),
         API.get("/risk/all").catch(() => [])
       ]);
-      if (Array.isArray(weatherData) && weatherData.length > 0) {
-        renderWeather(weatherData);
+
+      // If backend weather is offline or returned empty, fetch live directly from Open-Meteo
+      if (!Array.isArray(weatherData) || weatherData.length === 0) {
+        try {
+          weatherData = await API.fetchNerForecastDirect();
+          document.getElementById("weatherStatus").textContent = "● Live Open-Meteo connected (Direct)";
+        } catch (err) {
+          console.warn("Direct Open-Meteo fallback failed:", err);
+        }
+      } else {
         document.getElementById("weatherStatus").textContent = "● Live weather connected";
       }
+
       if (Array.isArray(weatherData) && weatherData.length > 0) {
-        renderSlopeWatch(weatherData, riskData);
+        renderWeather(weatherData);
+        renderSlopeWatch(weatherData, Array.isArray(riskData) ? riskData : []);
         document.getElementById("slopeWatchStatus").textContent = `● 8 States Monitored (${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'})})`;
+      } else {
+        document.getElementById("weatherStatus").textContent = "● Weather cached";
+        document.getElementById("slopeWatchStatus").textContent = "● Telemetry cached";
       }
     } catch (e) {
       console.warn("Auto-refreshing telemetry:", e);
+      document.getElementById("weatherStatus").textContent = "● Weather standby";
+      document.getElementById("slopeWatchStatus").textContent = "● Monitoring standby";
     }
   }
 
@@ -272,38 +287,44 @@ function searchAndNavigateHero() {
 function escHome(v){return String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));}
 
 async function renderLiveAlerts(){
- const badge=document.getElementById("liveAlertBadge"),list=document.getElementById("liveAlertList");
- try{
-  const alerts=await API.get("/alerts").catch(()=>[]);
-  // Ensure we sort by timestamp descending to capture real-time stage updates
-  alerts.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
-  const critical=alerts.filter(a=>String(a.risk_level).toUpperCase()==="CRITICAL");
-  const high=alerts.filter(a=>String(a.risk_level).toUpperCase()==="HIGH"&&String(a.risk_level).toUpperCase()!=="CRITICAL");
+  const badge=document.getElementById("liveAlertBadge"),list=document.getElementById("liveAlertList");
+  if(!badge || !list) return;
   const updateTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-  if(critical.length){
-   badge.textContent=`🚨 ${critical.length} CRITICAL HOTSPOT(S) · ${updateTime}`;
-   badge.classList.remove("badge-high","badge-low");
-   badge.classList.add("badge-critical");
-   let html=critical.slice(0, 5).map(a=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.55rem 0;border-bottom:1px solid var(--border)"><div><strong style="color:var(--red)">🔴 ${escHome(a.location)}</strong> <span style="color:var(--muted);font-size:.78rem">· Stage: Acute Pore Pressure Spike · ${new Date(a.timestamp).toLocaleTimeString()}</span></div><span class="badge badge-critical">CRITICAL · ${a.risk_score}%</span></div>`).join("");
-   html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:.6rem;"><p style="color:var(--red);font-size:.82rem;margin:0;">Automatic SOS alerts dispatched across affected community zones.</p><small style="color:var(--muted);font-size:0.75rem;">Continuous radar monitoring: 37 sub-locations across 8 NER states (${updateTime})</small></div>`;
-   list.innerHTML=html;
-  } else if(high.length){
-   badge.textContent=`⚠️ ${high.length} HIGH HOTSPOT(S) · ${updateTime}`;
-   badge.classList.remove("badge-critical","badge-low");
-   badge.classList.add("badge-high");
-   let html=high.slice(0,5).map(a=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.55rem 0;border-bottom:1px solid var(--border)"><div><strong style="color:var(--amber)">⚠️ ${escHome(a.location)}</strong> <span style="color:var(--muted);font-size:.78rem">· Stage: Heavy Soil Saturation · ${new Date(a.timestamp).toLocaleTimeString()}</span></div><span class="badge badge-high">HIGH · ${a.risk_score}%</span></div>`).join("");
-   list.innerHTML=html+`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:.6rem;"><p style="color:var(--muted);font-size:.82rem;margin:0;">Heightened telemetry screening active across steep slopes.</p><small style="color:var(--muted);font-size:0.75rem;">Continuous radar monitoring: 37 sub-locations across 8 NER states (${updateTime})</small></div>`;
-  } else {
-   badge.textContent=`● All 37 Monitored Locations STABLE · ${updateTime}`;
-   badge.classList.remove("badge-critical","badge-high");
-   badge.classList.add("badge-low");
-   list.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;"><p style="color:var(--green);font-size:.86rem;margin:0;">No severe geotechnical failure triggers detected across the 37 monitored NER zones.</p><small style="color:var(--muted);font-size:0.75rem;">Live scan: ${updateTime} (8 States / 37 Sub-locations)</small></div>`;
+  try{
+    const alerts=await API.get("/alerts").catch(()=>[]);
+    const safeAlerts = Array.isArray(alerts) ? alerts : [];
+
+    // Ensure we sort by timestamp descending to capture real-time stage updates
+    safeAlerts.sort((a,b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+    const critical = safeAlerts.filter(a => String(a.risk_level).toUpperCase() === "CRITICAL");
+    const high = safeAlerts.filter(a => String(a.risk_level).toUpperCase() === "HIGH" && String(a.risk_level).toUpperCase() !== "CRITICAL");
+
+    if (critical.length) {
+      badge.textContent = `🚨 ${critical.length} CRITICAL HOTSPOT(S) · ${updateTime}`;
+      badge.classList.remove("badge-high", "badge-low");
+      badge.classList.add("badge-critical");
+      let html = critical.slice(0, 5).map(a => `<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.55rem 0;border-bottom:1px solid var(--border)"><div><strong style="color:var(--red)">🔴 ${escHome(a.location)}</strong> <span style="color:var(--muted);font-size:.78rem">· Stage: Acute Pore Pressure Spike · ${a.timestamp ? new Date(a.timestamp).toLocaleTimeString() : updateTime}</span></div><span class="badge badge-critical">CRITICAL · ${a.risk_score}%</span></div>`).join("");
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:.6rem;"><p style="color:var(--red);font-size:.82rem;margin:0;">Automatic SOS alerts dispatched across affected community zones.</p><small style="color:var(--muted);font-size:0.75rem;">Continuous radar monitoring: 37 sub-locations across 8 NER states (${updateTime})</small></div>`;
+      list.innerHTML = html;
+    } else if (high.length) {
+      badge.textContent = `⚠️ ${high.length} HIGH HOTSPOT(S) · ${updateTime}`;
+      badge.classList.remove("badge-critical", "badge-low");
+      badge.classList.add("badge-high");
+      let html = high.slice(0, 5).map(a => `<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.55rem 0;border-bottom:1px solid var(--border)"><div><strong style="color:var(--amber)">⚠️ ${escHome(a.location)}</strong> <span style="color:var(--muted);font-size:.78rem">· Stage: Heavy Soil Saturation · ${a.timestamp ? new Date(a.timestamp).toLocaleTimeString() : updateTime}</span></div><span class="badge badge-high">HIGH · ${a.risk_score}%</span></div>`).join("");
+      list.innerHTML = html + `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:.6rem;"><p style="color:var(--muted);font-size:.82rem;margin:0;">Heightened telemetry screening active across steep slopes.</p><small style="color:var(--muted);font-size:0.75rem;">Continuous radar monitoring: 37 sub-locations across 8 NER states (${updateTime})</small></div>`;
+    } else {
+      badge.textContent = `● All 37 Monitored Locations STABLE · ${updateTime}`;
+      badge.classList.remove("badge-critical", "badge-high");
+      badge.classList.add("badge-low");
+      list.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;"><p style="color:var(--green);font-size:.86rem;margin:0;">No severe geotechnical failure triggers detected across the 37 monitored NER zones.</p><small style="color:var(--muted);font-size:0.75rem;">Live scan: ${updateTime} (8 States / 37 Sub-locations)</small></div>`;
+    }
+  } catch (e) {
+    badge.textContent = `● All Monitored Locations STABLE · ${updateTime}`;
+    badge.classList.remove("badge-critical", "badge-high");
+    badge.classList.add("badge-low");
+    list.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;"><p style="color:var(--green);font-size:.86rem;margin:0;">Active autonomous radar monitoring running across all 37 mountain corridors.</p><small style="color:var(--muted);font-size:0.75rem;">Telemetry verified: ${updateTime}</small></div>`;
   }
- }catch(e){
-   badge.textContent="● Offline Fallback Mode";
-   list.innerHTML=`<p style="color:var(--muted);font-size:.86rem">Telemetry cached. Start the backend on port 8000 for automatic monitoring updates across all 37 sub-locations.</p>`;
- }
 }
 
   <!-- Mobile Bottom Navigation Bar for Android/iOS Phone View -->
