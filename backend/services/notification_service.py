@@ -45,6 +45,9 @@ class IPv4SMTP_SSL(smtplib.SMTP_SSL):
         return super()._get_socket(host, port, timeout)
 
 
+_smtp_blocked_until = 0.0
+
+
 def _get_smtp_config():
     resend_key = os.getenv("RESEND_API_KEY", "").strip()
     brevo_key = os.getenv("BREVO_API_KEY", "").strip()
@@ -58,6 +61,41 @@ def _get_smtp_config():
 def _smtp_configured():
     host, user, password, _, _, resend_key, brevo_key = _get_smtp_config()
     return bool(resend_key or brevo_key or (host and user and password))
+
+
+def _send_via_brevo(api_key: str, sender: str, recipient: str, subject: str, body: str) -> dict:
+    try:
+        sender_email = sender if ("@" in sender and "<" not in sender) else "sahaanuska99@gmail.com"
+        sender_name = "Landslide Guardian"
+        if "<" in sender and ">" in sender:
+            sender_name = sender.split("<")[0].strip()
+            sender_email = sender.split("<")[1].split(">")[0].strip()
+            
+        res = httpx.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={
+                "api-key": api_key,
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            json={
+                "sender": {"name": sender_name, "email": sender_email},
+                "to": [{"email": recipient}],
+                "subject": subject,
+                "textContent": body,
+            },
+            timeout=10,
+        )
+        if res.status_code in (200, 201):
+            data = res.json()
+            print(f"[BREVO SUCCESS] Email sent via HTTP API to {recipient} (id: {data.get('messageId')})")
+            return {"status": "SENT", "recipient": recipient, "provider": "brevo", "id": data.get("messageId")}
+        else:
+            err = res.text
+            print(f"[BREVO ERROR] Status {res.status_code}: {err}")
+            return {"status": "FAILED", "recipient": recipient, "error": f"Brevo API error: {err}"}
+    except Exception as exc:
+        return {"status": "FAILED", "recipient": recipient, "error": f"Brevo HTTP request failed: {exc}"}
 
 
 def _send_via_resend(api_key: str, sender: str, recipient: str, subject: str, body: str) -> dict:
@@ -87,6 +125,8 @@ def _send_via_resend(api_key: str, sender: str, recipient: str, subject: str, bo
 
 
 def _send(recipient: str, subject: str, body: str) -> dict:
+    global _smtp_blocked_until
+    import time
     host, user, password, port, sender, resend_key, brevo_key = _get_smtp_config()
 
     target_recipient = recipient.strip()
@@ -97,13 +137,27 @@ def _send(recipient: str, subject: str, body: str) -> dict:
         if resend_res["status"] == "SENT":
             return resend_res
 
-    # 2. Check if SMTP credentials exist
+    # 2. Secondary Cloud HTTP API: Brevo (Port 443 — NEVER blocked by Railway)
+    if brevo_key:
+        brevo_res = _send_via_brevo(brevo_key, sender, target_recipient, subject, body)
+        if brevo_res["status"] == "SENT":
+            return brevo_res
+
+    # 3. Check if SMTP credentials exist
     if not (user and password):
         print(f"[SMTP WARNING] Credentials missing. Simulated send to: {target_recipient}")
         return {
             "status": "NOT_CONFIGURED",
             "recipient": target_recipient,
-            "message": "SMTP credentials (SMTP_USER/SMTP_PASSWORD) or RESEND_API_KEY are not configured in environment."
+            "message": "SMTP credentials (SMTP_USER/SMTP_PASSWORD) or RESEND_API_KEY/BREVO_API_KEY are not configured in environment."
+        }
+
+    # 4. Check if raw SMTP ports are currently blocked by host network firewall
+    if time.time() < _smtp_blocked_until:
+        return {
+            "status": "NETWORK_BLOCKED",
+            "recipient": target_recipient,
+            "error": "Outbound raw SMTP ports (465/587) are firewalled by the container platform. Set RESEND_API_KEY or BREVO_API_KEY in Railway Variables for direct email delivery."
         }
 
     clean_password = password.strip().replace(" ", "")
@@ -178,7 +232,10 @@ def _send(recipient: str, subject: str, body: str) -> dict:
             break
 
     final_err_msg = f"Network connection failed on ports 465 and 587: {last_error}"
-    logger.exception("Email dispatch failed to %s: %s", target_recipient, final_err_msg)
+    if isinstance(last_error, (OSError, socket.error)):
+        # Host network is blocking raw email socket connections (standard on cloud containers like Railway)
+        _smtp_blocked_until = time.time() + 300
+    logger.warning("Email dispatch failed to %s: %s", target_recipient, final_err_msg)
     return {
         "status": "FAILED",
         "recipient": target_recipient,

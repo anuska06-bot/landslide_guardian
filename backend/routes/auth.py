@@ -57,7 +57,20 @@ async def send_otp(req: SendOtpRequest, background_tasks: BackgroundTasks):
     """Send a verification OTP to the registered email instantly with background email dispatch."""
     email = req.email.lower().strip()
     if not db_manager.citizens.find_one({"email": email}):
-        raise HTTPException(status_code=404, detail="No registration found for this email. Register first.")
+        import datetime
+        db_manager.citizens.update_one(
+            {"email": email},
+            {"$set": {
+                "name": email.split("@")[0].title(),
+                "email": email,
+                "region": "sikkim",
+                "location": "Gangtok, Sikkim",
+                "email_verified": False,
+                "account_status": "PENDING_VERIFICATION",
+                "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            }},
+            upsert=True,
+        )
 
     smtp_configured = _smtp_configured()
     result = otp_service.create_or_resend_otp(email, store_plaintext=True)

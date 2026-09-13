@@ -41,7 +41,7 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(
     title="Landslide Guardian API",
     description="Software-only SIH landslide risk monitoring with live weather, ML and future sensor compatibility.",
-    version="2.1.0",
+    version="2.8.0",
     lifespan=lifespan,
 )
 
@@ -58,11 +58,11 @@ app.include_router(dataset.router, prefix="/api", tags=["Dataset"])
 app.include_router(alerts.router, prefix="/api", tags=["Alerts"])
 app.include_router(sos.router, prefix="/api", tags=["Citizen Email Alerts"])
 app.include_router(admin.router, prefix="/api", tags=["Admin Authentication"])
-app.include_router(assistant.router, prefix="/api", tags=["Assistant"])
+app.include_router(pipeline.router, prefix="/api", tags=["Interactive Early Warning Pipeline"])
+app.include_router(reports.router, prefix="/api", tags=["Crowdsourced Hazard Reports"])
+app.include_router(assistant.router, prefix="/api", tags=["Explainable AI Disaster Assistant"])
 app.include_router(monitor.router, prefix="/api", tags=["Automatic Monitoring"])
-app.include_router(pipeline.router, prefix="/api", tags=["Live Rainfall → Pore Pressure → Threshold Pipeline"])
-app.include_router(auth.router, prefix="/api", tags=["Email OTP Verification"])
-app.include_router(reports.router, prefix="/api", tags=["Crowdsourced Reports"])
+app.include_router(auth.router, prefix="/api", tags=["Citizen Auth & Registration"])
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
@@ -72,11 +72,11 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 
 @app.get("/api/health")
-async def health_check():
+async def health():
     connected = db_manager.ping()
     return {
         "status": "healthy",
-        "database": "mongodb_atlas" if connected else "in_memory_demo",
+        "api_version": app.version,
         "database_connected": connected,
         "system": "Landslide Guardian API",
         "mode": "Software-only live weather + ML + future sensor interface",
@@ -91,6 +91,7 @@ async def config():
     mon = get_monitoring_state()
     return {
         "api_version": app.version,
+        "build_version": "2.8.0",
         "storage_mode": db_manager.mode,
         "hardware_ready": False,
         "future_sensor_interface": True,

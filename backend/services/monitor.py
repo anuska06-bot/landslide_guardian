@@ -66,17 +66,18 @@ def set_monitor_enabled(enabled: bool):
     return _monitor_enabled
 
 
-def _iter_locations():
-    """Yield (label, lat, lon, is_primary) for monitored NER locations and key sub-locations."""
-    # 1. 8 Primary Regional Anchors
+def _iter_locations(include_sublocations: bool = False):
+    """Yield (label, lat, lon, is_primary) for monitored NER locations."""
+    # 1. 8 Primary Regional Anchors (one for each NE state)
     for key, coords in NER_COORDS.items():
         label = NER_LABELS.get(key, key.title())
         yield label, coords[0], coords[1], True
 
-    # 2. Key Sub-locations across the regions
-    from .geo_hierarchy import NER_SUBLOCATIONS
-    for sub in NER_SUBLOCATIONS:
-        yield f"{sub['name']}, {sub['state']}", sub["lat"], sub["lon"], False
+    # 2. Key Sub-locations across the regions (if explicitly requested)
+    if include_sublocations:
+        from .geo_hierarchy import NER_SUBLOCATIONS
+        for sub in NER_SUBLOCATIONS:
+            yield f"{sub['name']}, {sub['state']}", sub["lat"], sub["lon"], False
 
 
 def _get_high_threshold(result):
@@ -85,7 +86,7 @@ def _get_high_threshold(result):
     return t.get("pore_pressure_high_kpa")
 
 
-async def run_monitor_cycle(force: bool = False) -> dict:
+async def run_monitor_cycle(force: bool = False, include_sublocations: bool = False) -> dict:
     """
     Run one full monitoring pass with controlled concurrency:
     recompute risk across regional anchors and key sublocations,
@@ -154,7 +155,7 @@ async def run_monitor_cycle(force: bool = False) -> dict:
                 return {"location": label, "error": str(exc), "is_primary": is_primary}
 
     try:
-        tasks = [_eval_one(label, lat, lon, is_primary) for label, lat, lon, is_primary in _iter_locations()]
+        tasks = [_eval_one(label, lat, lon, is_primary) for label, lat, lon, is_primary in _iter_locations(include_sublocations)]
         raw_results = await asyncio.gather(*tasks, return_exceptions=True)
         for r in raw_results:
             if isinstance(r, dict):
@@ -184,11 +185,13 @@ async def run_monitor_cycle(force: bool = False) -> dict:
 
 async def background_monitor_loop():
     """Periodically refresh risk for all locations and auto-dispatch SOS."""
-    logger.info("Automatic monitoring loop started (every %ss).", MONITOR_INTERVAL_SECONDS)
+    logger.info("Automatic monitoring loop scheduled (every %ss). Initial start in 45s.", MONITOR_INTERVAL_SECONDS)
+    # Stagger initial run by 45s so container finishes booting and serves requests cleanly
+    await asyncio.sleep(45)
     while True:
         if _monitor_enabled:
             try:
-                await run_monitor_cycle()
+                await run_monitor_cycle(include_sublocations=False)
             except Exception:
                 logger.exception("Background monitoring cycle crashed; will retry next tick.")
         await asyncio.sleep(MONITOR_INTERVAL_SECONDS)
@@ -308,11 +311,16 @@ def auto_dispatch(location: str, risk_score: int, risk_level: str,
         "confirmed landslide report."
     )
 
-    # Persist an audit record regardless of SMTP configuration so the admin
-    # console can show real-time automatic activity.
+    # Persist an audit record and dispatch asynchronously in background thread
+    # so risk evaluation and the asyncio event loop are NEVER blocked.
     if matching:
-        dispatch = dispatch_email_sos(location, matching, message, risk_score, risk_level)
-        status = dispatch.get("status")
+        import threading
+        threading.Thread(
+            target=dispatch_email_sos,
+            args=(location, matching, message, risk_score, risk_level),
+            daemon=True,
+        ).start()
+
         audit = {
             "kind": "AUTO_SOS",
             "location": location,
@@ -320,10 +328,9 @@ def auto_dispatch(location: str, risk_score: int, risk_level: str,
             "region": region_id,
             "risk_score": risk_score,
             "risk_level": risk_level,
-            "recipient_count": dispatch.get("recipient_count", len(matching)),
+            "recipient_count": len(matching),
             "eligible_verified_count": len(matching),
-            "status": status,
-            "smtp_configured": dispatch.get("smtp_configured"),
+            "status": "DISPATCHED",
             "message": message,
             "timestamp": now.isoformat(),
         }
@@ -333,12 +340,12 @@ def auto_dispatch(location: str, risk_score: int, risk_level: str,
             logger.exception("Failed to log automatic dispatch.")
         return {
             "dispatched": True,
-            "status": status,
+            "status": "DISPATCHED",
             "location": location,
             "region": region_id,
             "risk_level": risk_level,
             "risk_score": risk_score,
-            "recipient_count": dispatch.get("recipient_count", len(matching)),
+            "recipient_count": len(matching),
         }
 
     # No verified recipients: still log an audit record so activity is visible.

@@ -236,7 +236,7 @@ def verify_otp(email: str, code: str) -> dict:
     )
     db_manager.citizens.update_one(
         {"email": email},
-        {"$set": {"email_verified": True, "verified_at": verified_time}},
+        {"$set": {"email_verified": True, "verified_at": verified_time, "account_status": "VERIFIED"}},
         upsert=True,
     )
 
