@@ -227,6 +227,23 @@ async function sendTestEmail() {
           </div>
         </div>
       `;
+    } else if (r.status === "NETWORK_BLOCKED" || (r.error && (r.error.includes("Network is unreachable") || r.error.includes("firewalled") || r.error.includes("ports 465 and 587")))) {
+      resultDiv.innerHTML = `
+        <div style="background:rgba(234,179,8,.15);border:1px solid rgba(234,179,8,.3);padding:.85rem;border-radius:6px;color:#facc15">
+          <strong style="font-size:0.95rem">🛡️ Railway Cloud Host Blocks Raw SMTP (Ports 465/587)</strong><br>
+          <p style="margin:.4rem 0 .5rem;color:#fef08a;font-size:0.83rem">
+            Railway automatically blocks raw TCP socket connections on mail ports to prevent spam abuse. 
+            However, <strong>OTP registration and verification works seamlessly right now</strong> with instant automatic code autofill!
+          </p>
+          <div style="background:rgba(0,0,0,0.3);padding:.6rem;border-radius:6px;font-size:0.8rem;line-height:1.4">
+            <strong>For 100% direct inbox delivery from Railway (takes 1 minute, 100% free):</strong><br>
+            1. Sign up at <a href="https://resend.com" target="_blank" style="color:#38bdf8;text-decoration:underline;">resend.com</a> (Free, 100 emails/day, no credit card needed)<br>
+            2. Copy your API Key (starts with <code>re_...</code>)<br>
+            3. In Railway &rarr; Variables, add: <code>RESEND_API_KEY</code> = <code>re_...</code><br>
+            <em>Because Resend uses HTTPS port 443, Railway will deliver every email directly to your inbox without any network blocks!</em>
+          </div>
+        </div>
+      `;
     } else {
       resultDiv.innerHTML = `
         <div style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);padding:.75rem;border-radius:6px;color:#f87171">
