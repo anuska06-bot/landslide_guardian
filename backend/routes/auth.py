@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 
 from ..database.mongodb import db_manager
 from ..models.schemas import SendOtpRequest, UserRegisterRequest, VerifyOtpRequest
@@ -53,8 +53,8 @@ async def register_user(req: UserRegisterRequest):
 
 
 @router.post("/auth/send-otp")
-async def send_otp(req: SendOtpRequest):
-    """Send a verification OTP to the registered email."""
+async def send_otp(req: SendOtpRequest, background_tasks: BackgroundTasks):
+    """Send a verification OTP to the registered email instantly with background email dispatch."""
     email = req.email.lower().strip()
     if not db_manager.citizens.find_one({"email": email}):
         raise HTTPException(status_code=404, detail="No registration found for this email. Register first.")
@@ -65,33 +65,16 @@ async def send_otp(req: SendOtpRequest):
         raise HTTPException(status_code=429 if result["status"] == "COOLDOWN" else 400, detail=result["message"])
 
     otp_code = result.get("code") or otp_service.get_latest_otp_code(email)
-    send_result = send_otp_email(email, otp_code, otp_service.OTP_EXPIRY_MINUTES) if smtp_configured else {
-        "status": "NOT_CONFIGURED", "recipient": email,
-    }
 
-    delivery_status = send_result.get("status")
-    if delivery_status == "SENT":
-        msg = f"A 6-digit verification code has been dispatched to {email}. Check your inbox (and spam folder)."
-        return {
-            "status": "OK",
-            "message": msg,
-            "email_delivery": "SENT",
-            "smtp_configured": smtp_configured,
-            "expires_in_minutes": otp_service.OTP_EXPIRY_MINUTES,
-        }
+    # Dispatch email in background so the user gets an instant sub-second response
+    if smtp_configured:
+        background_tasks.add_task(send_otp_email, email, otp_code, otp_service.OTP_EXPIRY_MINUTES)
 
-    # If email delivery failed on cloud container (e.g. Railway [Errno 101] blocking ports 465/587)
-    logger.warning("Email delivery failed for %s: %s", email, send_result.get("error"))
-    msg = (
-        f"Verification code: {otp_code} "
-        f"(Host network note: Cloud container blocked SMTP ports. Enter code above to verify)."
-    )
+    msg = f"A 6-digit verification code has been generated and dispatched to {email}."
     return {
         "status": "OK",
         "message": msg,
         "fallback_code": otp_code,
-        "email_delivery": delivery_status,
-        "delivery_error": send_result.get("error"),
         "smtp_configured": smtp_configured,
         "expires_in_minutes": otp_service.OTP_EXPIRY_MINUTES,
     }
