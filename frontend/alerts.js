@@ -1,3 +1,18 @@
+function formatApiError(err) {
+  if (!err) return "Unknown error occurred.";
+  const msg = err.message || String(err);
+  const jsonMatch = msg.match(/\{.*\}$/);
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (parsed.detail) return parsed.detail;
+      if (parsed.message) return parsed.message;
+      if (parsed.error) return parsed.error;
+    } catch (_) {}
+  }
+  return msg;
+}
+
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -55,7 +70,7 @@ async function registerCitizen(e) {
     e.target.reset();
     populateLocationSelect();
   } catch (err) {
-    regMsg.innerHTML = `<span style="color:var(--red)">Registration failed: ${esc(err.message)}</span>`;
+    regMsg.innerHTML = `<span style="color:var(--red)">Registration failed: ${esc(formatApiError(err))}</span>`;
   }
 }
 
@@ -72,7 +87,20 @@ async function sendOtp() {
     const r = await API.post("/auth/send-otp", { email });
     otpMsg.innerHTML = `<span style="color:var(--green)">✉️ ${esc(r.message || "A 6-digit verification code has been dispatched to your email.")}</span>`;
   } catch (err) {
-    otpMsg.innerHTML = `<span style="color:var(--red)">${esc(err.message)}</span>`;
+    const cleanErr = formatApiError(err);
+    if (cleanErr.includes("App Password") || cleanErr.includes("Authentication failed")) {
+      otpMsg.innerHTML = `
+        <div style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);padding:.75rem;border-radius:6px;color:#f87171;font-size:0.84rem;margin-top:.4rem">
+          <strong>⚠️ Email Delivery Authentication Error:</strong><br>
+          ${esc(cleanErr)}<br>
+          <div style="margin-top:.5rem">
+            👉 <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:#38bdf8;text-decoration:underline;">Click here to generate a Google App Password</a>
+          </div>
+        </div>
+      `;
+    } else {
+      otpMsg.innerHTML = `<span style="color:var(--red)">${esc(cleanErr)}</span>`;
+    }
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = "Resend verification code"; }
   }
@@ -172,6 +200,22 @@ async function sendTestEmail() {
           <small>Add <code>SMTP_USER</code> and <code>SMTP_PASSWORD</code> in <code>backend/.env</code> or Railway variables.</small>
         </div>
       `;
+    } else if (r.status === "AUTH_FAILED" || (r.error && (r.error.includes("App Password") || r.error.includes("Authentication failed")))) {
+      resultDiv.innerHTML = `
+        <div style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);padding:.85rem;border-radius:6px;color:#f87171">
+          <strong style="font-size:0.95rem">🔑 Google SMTP Authentication Failed</strong><br>
+          <p style="margin:.4rem 0 .5rem;color:#fecaca;font-size:0.83rem">
+            ${esc(r.error || "Gmail credentials rejected.")}
+          </p>
+          <div style="background:rgba(0,0,0,0.3);padding:.6rem;border-radius:6px;font-size:0.8rem;line-height:1.4">
+            <strong>How to fix in 1 minute:</strong><br>
+            1. Open <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:#38bdf8;text-decoration:underline;">Google Account &rarr; App Passwords</a><br>
+            2. Name the app <strong>Landslide Guardian</strong> and click Create.<br>
+            3. Copy the 16-letter code (e.g. <code>abcd efgh ijkl mnop</code>).<br>
+            4. In Railway &rarr; Variables, set <code>SMTP_PASSWORD</code> to this 16-character code (not your personal Gmail password).
+          </div>
+        </div>
+      `;
     } else {
       resultDiv.innerHTML = `
         <div style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);padding:.75rem;border-radius:6px;color:#f87171">
@@ -181,7 +225,7 @@ async function sendTestEmail() {
       `;
     }
   } catch (err) {
-    resultDiv.innerHTML = `<span style="color:var(--red)">Request error: ${esc(err.message)}</span>`;
+    resultDiv.innerHTML = `<span style="color:var(--red)">Request error: ${esc(formatApiError(err))}</span>`;
   } finally {
     btn.disabled = false;
     btn.textContent = "Send Test Email";

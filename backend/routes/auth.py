@@ -39,6 +39,8 @@ async def register_user(req: UserRegisterRequest):
             }},
             upsert=True,
         )
+        # Clear any stale OTP rate limit from prior failed attempts
+        otp_service.clear_otp_rate_limit(email)
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Could not save registration.") from exc
 

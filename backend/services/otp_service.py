@@ -91,6 +91,22 @@ def _find_otp_doc(email: str):
     return None
 
 
+def clear_otp_rate_limit(email: str) -> None:
+    """Clear rate limiting and attempt counters for an email."""
+    email = (email or "").lower().strip()
+    if not email:
+        return
+    try:
+        db_manager.otps.update_one({"email": email}, {"$set": {"resends": 0, "attempts": 0}})
+    except Exception:
+        pass
+    cache = _load_otp_cache()
+    if email in cache:
+        cache[email]["resends"] = 0
+        cache[email]["attempts"] = 0
+        _save_otp_cache(cache)
+
+
 def create_or_resend_otp(email: str, store_plaintext: bool = False) -> dict:
     """Create a new OTP record (or respect resend cooldown). Returns status and code."""
     email = (email or "").lower().strip()
@@ -99,21 +115,39 @@ def create_or_resend_otp(email: str, store_plaintext: bool = False) -> dict:
 
     doc = _find_otp_doc(email)
     now = _now()
+    resends = 0
+
     if doc:
         last = doc.get("created_at")
+        expires = doc.get("expires_at")
+        resends = int(doc.get("resends", 0))
+
+        # Check if the previous OTP expired or was created over 15 minutes ago
+        reset_window = False
+        if expires:
+            try:
+                if datetime.fromisoformat(expires) < now:
+                    reset_window = True
+            except Exception:
+                pass
         if last:
             try:
                 last_dt = datetime.fromisoformat(last)
-                if (now - last_dt).total_seconds() < OTP_RESEND_COOLDOWN_SECONDS:
-                    wait = int(OTP_RESEND_COOLDOWN_SECONDS - (now - last_dt).total_seconds())
+                elapsed = (now - last_dt).total_seconds()
+                if elapsed > 900:  # 15 minutes
+                    reset_window = True
+                elif elapsed < OTP_RESEND_COOLDOWN_SECONDS:
+                    wait = int(OTP_RESEND_COOLDOWN_SECONDS - elapsed)
                     return {"status": "COOLDOWN", "message": f"Please wait {wait}s before resending.", "retry_after": wait}
             except Exception:
                 pass
 
-    # Track resend count to cap abuse per email per hour.
-    resends = int(doc.get("resends", 0) if doc else 0)
+        if reset_window or doc.get("verified"):
+            resends = 0
+
+    # Cap abuse: allow up to 5 requests per 15-minute window
     if resends >= 5:
-        return {"status": "LIMIT", "message": "Too many OTP requests for this email. Try again later."}
+        return {"status": "LIMIT", "message": "Too many OTP requests for this email. Please wait a few minutes before trying again."}
 
     code = generate_otp()
     expires_at = now + timedelta(minutes=OTP_EXPIRY_MINUTES)
@@ -192,7 +226,10 @@ def verify_otp(email: str, code: str) -> dict:
 
     # Mark verified, tie the email to a registered citizen.
     verified_time = now.isoformat()
-    db_manager.otps.update_one({"email": email}, {"$set": {"verified": True, "verified_at": verified_time}})
+    db_manager.otps.update_one(
+        {"email": email},
+        {"$set": {"verified": True, "verified_at": verified_time, "resends": 0, "attempts": 0}}
+    )
     db_manager.citizens.update_one(
         {"email": email},
         {"$set": {"email_verified": True, "verified_at": verified_time}},
@@ -204,6 +241,8 @@ def verify_otp(email: str, code: str) -> dict:
     if email in cache:
         cache[email]["verified"] = True
         cache[email]["verified_at"] = verified_time
+        cache[email]["resends"] = 0
+        cache[email]["attempts"] = 0
         _save_otp_cache(cache)
 
     return {"status": "SUCCESS", "message": "Email verified. You are now eligible for regional emergency SOS alerts."}

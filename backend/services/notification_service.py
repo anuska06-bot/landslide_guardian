@@ -1,6 +1,7 @@
 import html
 import logging
 import os
+import socket
 import smtplib
 from email.message import EmailMessage
 from datetime import datetime, timezone
@@ -14,11 +15,40 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+
+class IPv4SMTP(smtplib.SMTP):
+    """SMTP client forcing IPv4 address resolution to prevent [Errno 101] Network is unreachable in cloud containers."""
+    def _get_socket(self, host, port, timeout):
+        try:
+            infos = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
+            if infos:
+                ip = infos[0][4][0]
+                return socket.create_connection((ip, port), timeout, self.source_address)
+        except Exception as exc:
+            logger.debug("IPv4 getaddrinfo failed for %s: %s", host, exc)
+        return super()._get_socket(host, port, timeout)
+
+
+class IPv4SMTP_SSL(smtplib.SMTP_SSL):
+    """SMTP_SSL client forcing IPv4 address resolution to prevent [Errno 101] Network is unreachable in cloud containers."""
+    def _get_socket(self, host, port, timeout):
+        try:
+            infos = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
+            if infos:
+                ip = infos[0][4][0]
+                sock = socket.create_connection((ip, port), timeout, self.source_address)
+                server_hostname = self.host if self.host else host
+                return self.context.wrap_socket(sock, server_hostname=server_hostname)
+        except Exception as exc:
+            logger.debug("IPv4 SSL getaddrinfo failed for %s: %s", host, exc)
+        return super()._get_socket(host, port, timeout)
+
+
 def _get_smtp_config():
     host = os.getenv("SMTP_HOST") or os.getenv("SMTP_SERVER", "smtp.gmail.com")
     user = os.getenv("SMTP_USER") or os.getenv("SMTP_EMAIL", "")
     password = os.getenv("SMTP_PASSWORD", "")
-    port = int(os.getenv("SMTP_PORT", "587"))
+    port = int(os.getenv("SMTP_PORT", "465"))  # Default to 465 SSL for high reliability on cloud containers
     sender = os.getenv("ALERT_FROM_EMAIL") or user
     return host, user, password, port, sender
 
@@ -34,7 +64,7 @@ def _send(recipient: str, subject: str, body: str) -> dict:
         return {
             "status": "NOT_CONFIGURED",
             "recipient": recipient,
-            "message": "SMTP credentials (SMTP_USER and SMTP_PASSWORD) are not configured in backend/.env."
+            "message": "SMTP credentials (SMTP_USER and SMTP_PASSWORD) are not configured in backend/.env or Railway variables."
         }
 
     clean_password = password.strip().replace(" ", "")
@@ -47,33 +77,76 @@ def _send(recipient: str, subject: str, body: str) -> dict:
     msg["To"] = target_recipient
     msg.set_content(body)
 
-    try:
-        if port == 465:
-            with smtplib.SMTP_SSL(host, port, timeout=15) as server:
-                server.login(clean_user, clean_password)
-                server.send_message(msg)
-        else:
-            with smtplib.SMTP(host, port, timeout=15) as server:
-                server.ehlo()
-                server.starttls()
-                server.ehlo()
-                server.login(clean_user, clean_password)
-                server.send_message(msg)
-        print(f"[SMTP SUCCESS] Email successfully sent to -> {target_recipient}")
-        return {"status": "SENT", "recipient": target_recipient}
-    except smtplib.SMTPAuthenticationError as auth_err:
-        err_msg = (
-            f"SMTP Authentication failed for '{clean_user}'. "
-            "If using Gmail, you MUST generate and use a 16-character App Password "
-            "(Google Account -> Security -> 2-Step Verification -> App Passwords), NOT your normal Google password."
-        )
-        print(f"[SMTP AUTH ERROR] {err_msg}")
-        logger.warning(err_msg)
-        return {"status": "AUTH_FAILED", "recipient": target_recipient, "error": err_msg}
-    except Exception as exc:
-        print(f"[SMTP ERROR] Failed sending to {target_recipient}: {exc}")
-        logger.exception("Email dispatch failed to %s", target_recipient)
-        return {"status": "FAILED", "recipient": target_recipient, "error": str(exc)}
+    # Establish priority connection methods: try primary port, then fallback port if network/socket fails
+    connection_attempts = []
+    if port == 587:
+        connection_attempts.append(("STARTTLS", 587))
+        connection_attempts.append(("SSL", 465))
+    else:
+        # Default to SSL port 465 first, then fallback to 587 STARTTLS
+        connection_attempts.append(("SSL", 465))
+        connection_attempts.append(("STARTTLS", 587))
+
+    last_error = None
+    last_port_used = port
+
+    for method, p in connection_attempts:
+        last_port_used = p
+        try:
+            if method == "SSL":
+                with IPv4SMTP_SSL(host, p, timeout=15) as server:
+                    server.login(clean_user, clean_password)
+                    server.send_message(msg)
+            else:
+                with IPv4SMTP(host, p, timeout=15) as server:
+                    server.ehlo()
+                    server.starttls()
+                    server.ehlo()
+                    server.login(clean_user, clean_password)
+                    server.send_message(msg)
+
+            print(f"[SMTP SUCCESS] Email successfully sent to -> {target_recipient} (via {method} port {p})")
+            return {
+                "status": "SENT",
+                "recipient": target_recipient,
+                "port_used": p,
+                "method_used": method
+            }
+
+        except smtplib.SMTPAuthenticationError as auth_err:
+            err_msg = (
+                f"SMTP Authentication failed for '{clean_user}' (code: {auth_err.smtp_code}). "
+                "CRITICAL: If you recently changed your Google Account password, Google automatically invalidated all previous App Passwords. "
+                "You MUST create a NEW 16-character App Password at: https://myaccount.google.com/apppasswords "
+                "(Google Account -> Security -> 2-Step Verification -> App Passwords). "
+                "Then copy the new 16-character code into Railway Variables as SMTP_PASSWORD (do not use your regular Gmail password)."
+            )
+            print(f"[SMTP AUTH ERROR] {err_msg}")
+            logger.warning(err_msg)
+            return {
+                "status": "AUTH_FAILED",
+                "recipient": target_recipient,
+                "error": err_msg,
+                "guide_url": "https://myaccount.google.com/apppasswords"
+            }
+
+        except (OSError, socket.error, smtplib.SMTPConnectError) as net_err:
+            last_error = net_err
+            print(f"[SMTP WARNING] Port {p} ({method}) network error: {net_err}. Attempting fallback port...")
+            continue
+        except Exception as exc:
+            last_error = exc
+            print(f"[SMTP ERROR] Failed sending on port {p} to {target_recipient}: {exc}")
+            break
+
+    final_err_msg = f"Network connection failed on ports 465 and 587: {last_error}"
+    logger.exception("Email dispatch failed to %s: %s", target_recipient, final_err_msg)
+    return {
+        "status": "FAILED",
+        "recipient": target_recipient,
+        "error": str(last_error) if last_error else "Connection failed",
+        "detail": final_err_msg
+    }
 
 
 def send_plain_email(recipient: str, subject: str, body: str) -> dict:

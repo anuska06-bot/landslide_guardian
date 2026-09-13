@@ -3,6 +3,7 @@ from ..database.mongodb import db_manager, clean_document
 from ..models.schemas import CitizenRegisterRequest, SOSBroadcastRequest, TestEmailRequest
 from ..services.monitor import find_verified_recipients
 from ..services.notification_service import dispatch_email_sos, send_plain_email, _smtp_configured, _get_smtp_config
+from ..services.otp_service import clear_otp_rate_limit
 
 router = APIRouter()
 
@@ -18,6 +19,7 @@ async def register_citizen(citizen: CitizenRegisterRequest):
             {"$set": {**doc, "email": citizen.email.lower()}},
             upsert=True,
         )
+        clear_otp_rate_limit(citizen.email.lower())
         return {
             "status": "SUCCESS",
             "message": f"Registered {citizen.name} for {citizen.location} email alerts. Email verification required before receiving SOS.",

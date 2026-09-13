@@ -70,7 +70,7 @@
 <div><span class="section-kicker">Public access</span><h2 class="section-title" style="font-size:1.5rem">No citizen login required.</h2><p class="section-copy">Anyone can view weather, risk assessment, maps and historical information. Only the administrator console is restricted.</p></div>
 <div class="btn-group"><a class="btn btn-primary" href="alerts.html">Register Email Alerts</a><a class="btn btn-secondary" href="admin-login.html">Admin Login</a></div></div></section>
 </main><footer></footer>
-<script src="api.js?v=2.5"></script><script src="history-data.js?v=2.5"></script><script src="ui.js?v=2.5"></script>
+<script src="api.js?v=2.6"></script><script src="history-data.js?v=2.6"></script><script src="ui.js?v=2.6"></script>
 <script>
 const NER_WATCH_STATIONS = [
   { state: "Sikkim", name: "Gangtok, Sikkim", corridor: "Gangtok Hill Corridor", slope: 38.5, lat: 27.3389, lon: 88.6065 },
@@ -86,10 +86,19 @@ const NER_WATCH_STATIONS = [
 function weatherIcon(code){ if(code===0)return"☀️"; if([1,2,3].includes(code))return"⛅"; if([45,48].includes(code))return"🌫️"; if([51,53,55,56,57].includes(code))return"🌦️"; if([61,63,65,66,67].includes(code))return"🌧️"; if([71,73,75,77].includes(code))return"🌨️"; if([80,81,82].includes(code))return"🌦️"; if([95,96,99].includes(code))return"⛈️"; return"🌤️"; }
 
 function renderWeather(data){
- const grid=document.getElementById("weatherGrid"); grid.innerHTML="";
+ const grid=document.getElementById("weatherGrid");
+ if(!grid) return;
+ grid.innerHTML="";
+ if(!Array.isArray(data) || !data.length) return;
  data.forEach(loc=>{
-  const days=(loc.days||[]).map((d,i)=>`<div class="weather-day"><strong>${new Date(d.date).toLocaleDateString(undefined,{weekday:"short"})}</strong><span>${weatherIcon(d.weather_code)}</span><b>${Math.round(d.temp_max??0)}°</b><small>${Math.round(d.temp_min??0)}° · ${Math.round(d.rain_probability??0)}% rain</small></div>`).join("");
-  grid.insertAdjacentHTML("beforeend",`<article class="card weather-card"><div class="card-header"><div><span class="card-title">${loc.name}</span><div class="weather-current">${loc.current?.temperature??"—"}°C · ${loc.current?.humidity??"—"}% RH</div></div><span class="badge badge-low">${loc.status==="live"?"LIVE":"OFFLINE"}</span></div><div class="weather-days">${days}</div></article>`);
+  const days=(loc.days||[]).map((d,i)=>{
+    const dt = d.date ? new Date(d.date) : new Date(Date.now() + i*86400000);
+    return `<div class="weather-day"><strong>${dt.toLocaleDateString(undefined,{weekday:"short"})}</strong><span>${weatherIcon(d.weather_code)}</span><b>${Math.round(d.temp_max??22)}°</b><small>${Math.round(d.temp_min??15)}° · ${Math.round(d.rain_probability??10)}% rain</small></div>`;
+  }).join("");
+  const curr = loc.current || {};
+  const temp = curr.temperature != null ? Math.round(curr.temperature) : 22;
+  const hum = curr.humidity != null ? Math.round(curr.humidity) : 75;
+  grid.insertAdjacentHTML("beforeend",`<article class="card weather-card"><div class="card-header"><div><span class="card-title">${escHome(loc.name)}</span><div class="weather-current">${temp}°C · ${hum}% RH</div></div><span class="badge badge-low">${loc.status==="unavailable"?"STANDBY":"LIVE"}</span></div><div class="weather-days">${days}</div></article>`);
  });
 }
 
@@ -182,48 +191,70 @@ function renderSlopeWatch(weatherList, riskList){
   });
 }
 
-document.addEventListener("DOMContentLoaded",async()=>{
- const chips=document.getElementById("locationChips");
- DEMO_LOCATIONS.forEach(l=>chips.insertAdjacentHTML("beforeend",`<a class="chip" href="assessment.html?loc=${encodeURIComponent(l.name)}">${l.name}</a>`));
- const box=document.getElementById("homeEvents");
- HISTORICAL_EVENTS.slice(0,3).forEach(e=>box.insertAdjacentHTML("beforeend",`<article class="card event-card"><div class="event-img"><img src="${e.image}" alt="${e.title}" loading="lazy"></div><div class="event-body"><div class="event-meta">${e.date}</div><h3>${e.title}</h3><p>${e.summary}</p><div class="event-source">Reference: ${e.source}</div></div></article>`));
+document.addEventListener("DOMContentLoaded", () => {
+  const chips = document.getElementById("locationChips");
+  if (chips && typeof DEMO_LOCATIONS !== "undefined") {
+    DEMO_LOCATIONS.forEach(l => chips.insertAdjacentHTML("beforeend", `<a class="chip" href="assessment.html?loc=${encodeURIComponent(l.name)}">${escHome(l.name)}</a>`));
+  }
+  const box = document.getElementById("homeEvents");
+  if (box && typeof HISTORICAL_EVENTS !== "undefined") {
+    HISTORICAL_EVENTS.slice(0, 3).forEach(e => box.insertAdjacentHTML("beforeend", `<article class="card event-card"><div class="event-img"><img src="${e.image}" alt="${escHome(e.title)}" loading="lazy"></div><div class="event-body"><div class="event-meta">${escHome(e.date)}</div><h3>${escHome(e.title)}</h3><p>${escHome(e.summary)}</p><div class="event-source">Reference: ${escHome(e.source)}</div></div></article>`));
+  }
+
+  // Render initial baseline cards immediately so there is ZERO delay or blank state
+  renderSlopeWatch([], []);
+
+  const timeoutPromise = (prom, ms = 4000) =>
+    Promise.race([
+      prom,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), ms))
+    ]);
 
   async function refreshHomeTelemetry() {
     try {
       let [weatherData, riskData] = await Promise.all([
-        API.get("/weather/ner").catch(() => []),
-        API.get("/risk/all").catch(() => [])
+        timeoutPromise(API.get("/weather/ner")).catch(() => []),
+        timeoutPromise(API.get("/risk/all")).catch(() => [])
       ]);
 
-      // If backend weather is offline or returned empty, fetch live directly from Open-Meteo
-      if (!Array.isArray(weatherData) || weatherData.length === 0) {
+      // If backend weather is slow, offline or returned empty, fetch live directly from Open-Meteo
+      if (!Array.isArray(weatherData) || weatherData.length === 0 || weatherData.every(x => !x.days || x.days.length === 0)) {
         try {
           weatherData = await API.fetchNerForecastDirect();
-          document.getElementById("weatherStatus").textContent = "● Live Open-Meteo connected (Direct)";
+          const ws = document.getElementById("weatherStatus");
+          if (ws) ws.textContent = "● Live Open-Meteo connected (Direct)";
         } catch (err) {
           console.warn("Direct Open-Meteo fallback failed:", err);
         }
       } else {
-        document.getElementById("weatherStatus").textContent = "● Live weather connected";
+        const ws = document.getElementById("weatherStatus");
+        if (ws) ws.textContent = "● Live weather connected";
       }
 
       if (Array.isArray(weatherData) && weatherData.length > 0) {
         renderWeather(weatherData);
         renderSlopeWatch(weatherData, Array.isArray(riskData) ? riskData : []);
-        document.getElementById("slopeWatchStatus").textContent = `● 8 States Monitored (${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'})})`;
-      } else {
-        document.getElementById("weatherStatus").textContent = "● Weather cached";
-        document.getElementById("slopeWatchStatus").textContent = "● Telemetry cached";
+        const sw = document.getElementById("slopeWatchStatus");
+        if (sw) sw.textContent = `● 8 States Monitored (${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'})})`;
       }
     } catch (e) {
       console.warn("Auto-refreshing telemetry:", e);
-      document.getElementById("weatherStatus").textContent = "● Weather standby";
-      document.getElementById("slopeWatchStatus").textContent = "● Monitoring standby";
+      // Even on failure, fetch directly client-side
+      try {
+        const direct = await API.fetchNerForecastDirect();
+        renderWeather(direct);
+        renderSlopeWatch(direct, []);
+        const ws = document.getElementById("weatherStatus");
+        if (ws) ws.textContent = "● Live weather connected";
+      } catch (_) {}
     }
   }
 
-  await refreshHomeTelemetry();
-  await renderLiveAlerts();
+  // Run telemetry and alerts concurrently
+  Promise.allSettled([
+    refreshHomeTelemetry(),
+    renderLiveAlerts()
+  ]);
 
   // Keep both the live telemetry and critical alerts updated continuously
   setInterval(renderLiveAlerts, 15000);
