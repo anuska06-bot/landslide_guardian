@@ -742,7 +742,8 @@ async function triggerLiveNow() {
 
 async function loadCrowdsourcedReports() {
   try {
-    const res = await fetch("/api/reports/all?limit=50");
+    const endpoint = (window.API_BASE || "/api") + "/reports/all?limit=50";
+    const res = await fetch(endpoint);
     if (!res.ok) return;
     const data = await res.json();
     const reports = data.reports || [];

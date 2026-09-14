@@ -1,4 +1,18 @@
-const API_BASE = window.LANDSLIDE_API_BASE || "/api";
+// Decoupled architecture: connect frontend directly to the Railway backend API
+const RAILWAY_BACKEND_ORIGIN = "https://landslideguardian-production.up.railway.app";
+const isLocalhost = Boolean(
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1" ||
+  window.location.hostname === ""
+);
+
+const API_BASE = window.LANDSLIDE_API_BASE || 
+  (window.location.hostname.includes("railway.app") 
+    ? "/api" 
+    : (isLocalhost ? "http://localhost:8000/api" : `${RAILWAY_BACKEND_ORIGIN}/api`));
+
+window.API_BASE = API_BASE;
+window.BACKEND_ORIGIN = RAILWAY_BACKEND_ORIGIN;
 
 const DEMO_LOCATIONS = [
   {"name": "Gangtok, Sikkim", "state": "Sikkim", "lat": 27.3389, "lon": 88.6065, "district": "East Sikkim", "slope": 36.0},

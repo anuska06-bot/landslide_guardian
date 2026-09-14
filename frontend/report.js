@@ -206,7 +206,8 @@ function setupFormSubmit() {
     msg.innerHTML = `<div style="color:var(--text-muted)">Submitting report and uploading media to radar...</div>`;
 
     try {
-      const res = await fetch("/api/reports/submit", {
+      const endpoint = (window.API_BASE || "/api") + "/reports/submit";
+      const res = await fetch(endpoint, {
         method: "POST",
         body: formData
       });
@@ -255,7 +256,8 @@ async function loadRecentReports() {
   if (!container) return;
 
   try {
-    const res = await fetch("/api/reports/all?limit=30");
+    const endpoint = (window.API_BASE || "/api") + "/reports/all?limit=30";
+    const res = await fetch(endpoint);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const reports = data.reports || [];
@@ -266,8 +268,8 @@ async function loadRecentReports() {
 
     if (!reports.length) {
       container.innerHTML = `
-        <div style="text-align:center;padding:2rem;color:var(--text-muted)">
-          No crowdsourced reports received yet. Be the first to report road condition or cracks!
+        <div style="text-align:center;padding:2.5rem 1rem;color:var(--text-muted);border:1px dashed var(--border);border-radius:8px">
+          No live incident reports active. The network is operating nominally.
         </div>
       `;
       return;
@@ -296,10 +298,11 @@ async function loadRecentReports() {
 
       let mediaHtml = "";
       if (r.media_url) {
+        const fullMediaUrl = r.media_url.startsWith("http") ? r.media_url : `${window.BACKEND_ORIGIN || ""}${r.media_url}`;
         if (r.media_type === "video") {
-          mediaHtml = `<video src="${r.media_url}" controls class="report-media-thumb"></video>`;
+          mediaHtml = `<video src="${fullMediaUrl}" controls class="report-media-thumb"></video>`;
         } else {
-          mediaHtml = `<a href="${r.media_url}" target="_blank"><img src="${r.media_url}" alt="Incident Media" class="report-media-thumb" loading="lazy"></a>`;
+          mediaHtml = `<a href="${fullMediaUrl}" target="_blank"><img src="${fullMediaUrl}" alt="Incident Media" class="report-media-thumb" loading="lazy"></a>`;
         }
       }
 

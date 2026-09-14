@@ -83,14 +83,16 @@ async def send_otp(req: SendOtpRequest, background_tasks: BackgroundTasks):
     if smtp_configured:
         background_tasks.add_task(send_otp_email, email, otp_code, otp_service.OTP_EXPIRY_MINUTES)
 
-    msg = f"A 6-digit verification code has been generated and dispatched to {email}."
-    return {
+    response = {
         "status": "OK",
-        "message": msg,
-        "fallback_code": otp_code,
+        "message": f"A 6-digit verification code has been dispatched to {email}. Check your email inbox.",
         "smtp_configured": smtp_configured,
         "expires_in_minutes": otp_service.OTP_EXPIRY_MINUTES,
     }
+    if not smtp_configured and otp_code:
+        response["demo_otp"] = otp_code
+        response["message"] = f"Verification code: {otp_code} (demo mode — email provider not configured)."
+    return response
 
 
 @router.post("/auth/verify-otp")
