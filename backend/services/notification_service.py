@@ -131,17 +131,17 @@ def _send(recipient: str, subject: str, body: str) -> dict:
 
     target_recipient = recipient.strip()
 
-    # 1. Primary Cloud HTTP API: Resend (Port 443 — NEVER blocked by Railway)
-    if resend_key:
-        resend_res = _send_via_resend(resend_key, sender, target_recipient, subject, body)
-        if resend_res["status"] == "SENT":
-            return resend_res
-
-    # 2. Secondary Cloud HTTP API: Brevo (Port 443 — NEVER blocked by Railway)
+    # 1. Cloud HTTP API: Brevo (No sandbox restriction — delivers to ANY recipient over HTTPS)
     if brevo_key:
         brevo_res = _send_via_brevo(brevo_key, sender, target_recipient, subject, body)
         if brevo_res["status"] == "SENT":
             return brevo_res
+
+    # 2. Cloud HTTP API: Resend (Port 443 — NEVER blocked by Railway)
+    if resend_key:
+        resend_res = _send_via_resend(resend_key, sender, target_recipient, subject, body)
+        if resend_res["status"] == "SENT":
+            return resend_res
 
     # 3. Check if SMTP credentials exist
     if not (user and password):
