@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
     footer.innerHTML = `
       <div class="footer-grid">
         <div><div class="footer-title">⛰️ Landslide Guardian</div>
-          <p style="font-size:.78rem;max-width:280px">AI-based landslide risk monitoring for North-Eastern India with a software-only SIH demonstration and future sensor compatibility.</p>
+          <p style="font-size:.78rem;max-width:280px">Geotechnical and meteorological landslide early-warning monitoring tailored for North-Eastern India mountain corridors.</p>
         </div>
         <div><div class="footer-title">Explore</div><ul class="footer-links">
           <li><a href="index.html">Home</a></li><li><a href="dashboard.html">Dashboard</a></li><li><a href="assessment.html">Risk Assessment</a></li><li><a href="map.html">Risk Map</a></li><li><a href="history.html">Historical Context</a></li></ul>
@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <span>Police</span><strong>100</strong><span>Fire</span><strong>101</strong><span>Ambulance</span><strong>108</strong>
         </div></div>
       </div>
-      <div class="footer-bottom"><span>© 2026 Landslide Guardian · SIH software prototype</span><span>For life-threatening emergencies, call 112 and follow official instructions.</span></div>`;
+      <div class="footer-bottom"><span>© Landslide Guardian · Multi-Hazard Early Warning Network</span><span>For life-threatening emergencies, call 112 and follow official instructions.</span></div>`;
   }
 
   if (!document.querySelector(".floating-assist")) {
