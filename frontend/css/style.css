@@ -35,7 +35,9 @@ html {
 
 body {
   font-family: var(--font);
-  background:
+  background-color: #06100c;
+  background-image:
+    radial-gradient(ellipse 100% 60% at 50% 0%, rgba(67, 209, 122, 0.08), transparent 70%),
     linear-gradient(
       180deg,
       #06100c 0%,
@@ -47,6 +49,31 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+/* Constant ambient mountain background across all pages */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(180deg, rgba(6, 16, 12, 0.86) 0%, rgba(8, 17, 14, 0.95) 100%),
+    url("../assets/landslide-hero.webp"),
+    url("../assets/landslide-hero.jpg");
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  opacity: 0.20;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Ensure foreground elements sit cleanly above the constant background */
+.navbar, .hero, main, footer, .stat-strip, .container, .mobile-bottom-nav {
+  position: relative;
+  z-index: 1;
 }
 
 a {
@@ -169,15 +196,7 @@ a {
   display: flex;
   align-items: center;
   overflow: hidden;
-
-  /*
-    BACKGROUND IMAGE
-
-    Put your selected image here:
-
-    frontend/assets/landslide-hero.jpg
-  */
-
+  background-color: #06100c;
   background-image:
     linear-gradient(
       90deg,
@@ -190,11 +209,13 @@ a {
       rgba(4, 11, 8, 0.12),
       rgba(4, 11, 8, 0.88)
     ),
+    url("../assets/landslide-hero.webp"),
     url("../assets/landslide-hero.jpg");
 
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;
+  will-change: transform;
 }
 
 
