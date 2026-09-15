@@ -14,6 +14,7 @@ from .terrain_service import (
     build_thresholds, calculate_factor_of_safety, get_full_terrain_info
 )
 from .weather_service import fetch_environmental_data
+from .seismic_service import get_seismic_risk_factor
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,14 @@ async def calculate_risk_assessment(
     env.aspect = terrain["aspect_deg"]
     env.ndvi = terrain["ndvi"]
     env.distance_to_road = terrain["distance_to_road_m"]
+    env.twi = float(terrain.get("twi", 6.5) or 6.5)
+    env.curvature = str(terrain.get("plan_curvature", "PLANAR"))
+    env.fault_distance_km = float(terrain.get("fault_distance_km", 25.0) or 25.0)
+
+    # Live Seismic Ground Motion assessment (USGS API with 1.8s timeout & cache)
+    seismic_info = await get_seismic_risk_factor(lat, lon)
+    kh = float(seismic_info.get("seismic_coefficient_kh", 0.0) or 0.0)
+    seismic_alert = bool(seismic_info.get("active_earthquake", False))
 
     soil = _safe_float(sensor_data.soil_moisture) if sensor_data and sensor_data.soil_moisture is not None else float(env.soil_moisture or 0)
     tilt = _safe_float(sensor_data.tilt_degrees) if sensor_data and sensor_data.tilt_degrees is not None else 0.0
@@ -188,21 +197,26 @@ async def calculate_risk_assessment(
         "cohesion_kpa": terrain["cohesion_kpa"],
     }
 
-    # Execute ML inference and geotechnical Factor of Safety
+    # Execute ML inference and geotechnical Factor of Safety (with pseudostatic seismic coefficient kh)
     ml_probability = predict_landslide_probability(features)
-    fs = calculate_factor_of_safety(terrain, soil, pore)
+    fs = calculate_factor_of_safety(terrain, soil, pore, seismic_coefficient_kh=kh)
     geo_score = max(0.0, min(100.0, 100.0 * (1.55 - fs) / 0.75))
 
     logger.info(
-        "Landslide Risk Pipeline: loc=%s, rain_24h=%.1fmm, soil=%.1f%%, pore=%.2fkPa, slope=%.1f deg -> ML_prob=%.2f%%, FS=%.2f",
-        location_name, rainfall, soil, pore, env.slope, ml_probability * 100.0, fs
+        "Landslide Risk Pipeline: loc=%s, rain_24h=%.1fmm, soil=%.1f%%, pore=%.2fkPa, slope=%.1f deg, kh=%.3f -> ML_prob=%.2f%%, FS=%.2f",
+        location_name, rainfall, soil, pore, env.slope, kh, ml_probability * 100.0, fs
     )
 
     rain_stress = min(1.0, rainfall / max(thresholds["rainfall_24h_high_mm"], 1))
     soil_stress = min(1.0, soil / max(thresholds["soil_moisture_high_pct"], 1))
     pore_stress = min(1.0, pore / max(thresholds["pore_pressure_high_kpa"], 1))
     tilt_stress = min(1.0, tilt / max(thresholds["tilt_high_deg"], 0.1))
-    criteria_score = 100 * (0.28*rain_stress + 0.27*soil_stress + 0.30*pore_stress + 0.15*tilt_stress)
+
+    if seismic_alert and kh > 0:
+        seismic_stress = min(1.0, float(seismic_info.get("estimated_pga_g", 0.0)) / 0.12)
+        criteria_score = 100 * (0.25*rain_stress + 0.22*soil_stress + 0.25*pore_stress + 0.13*tilt_stress + 0.15*seismic_stress)
+    else:
+        criteria_score = 100 * (0.28*rain_stress + 0.27*soil_stress + 0.30*pore_stress + 0.15*tilt_stress)
 
     final_score_raw = 0.55 * (ml_probability * 100) + 0.25 * geo_score + 0.20 * criteria_score
     score, level = classify_risk(final_score_raw)
@@ -212,6 +226,8 @@ async def calculate_risk_assessment(
         "pore_water_pressure": _criteria_status(pore, thresholds["pore_pressure_high_kpa"], thresholds["pore_pressure_high_kpa"] * 1.35),
         "rainfall_24h": _criteria_status(rainfall, thresholds["rainfall_24h_high_mm"], thresholds["rainfall_24h_high_mm"] * 1.5),
         "tilt": "NORMAL",
+        "seismic_ground_motion": seismic_info.get("seismic_status", "QUIET"),
+        "topographic_wetness": "HIGH_CONVERGENCE" if env.twi >= 7.5 else "NORMAL",
         "slope_geometry": "HIGH" if env.slope >= 32 else ("MODERATE" if env.slope >= 20 else "NORMAL"),
         "historical_frequency": "HIGH" if terrain["historical_freq"] >= 6 else ("MODERATE" if terrain["historical_freq"] >= 3 else "NORMAL"),
     }
@@ -280,6 +296,9 @@ async def calculate_risk_assessment(
     elif fs < 1.3:
         why_reasons.append(f"Reduced geotechnical stability margin (Factor of Safety = {fs:.2f})")
 
+    if seismic_alert:
+        why_reasons.append(f"Active seismic ground tremor detected (PGA ≈ {seismic_info.get('estimated_pga_g', 0.0):.3f}g; {seismic_info.get('nearest_place', 'regional earthquake')})")
+
     if not why_reasons:
         why_reasons.append("Environmental parameters and slope geometry remain within normal stable thresholds.")
 
@@ -300,10 +319,11 @@ async def calculate_risk_assessment(
             "interpretation": f"At {soil:.1f}% soil saturation and {rainfall:.1f} mm rain, estimated head is {pore_details.get('water_head_m', 0.0):.3f} m yielding u = {pore:.2f} kPa."
         },
         "factor_of_safety": {
-            "formula": "FS = [c' + (σ_n - u) · tan(φ')] / τ_shear",
+            "formula": "FS = [c' + (σ_n - u - kv·γ·z) · tan(φ')] / (τ_shear + kh·γ·z·cos(β))",
             "cohesion_c_prime_kpa": terrain["cohesion_kpa"],
             "friction_angle_phi_deg": terrain["friction_angle_deg"],
             "slope_beta_deg": env.slope,
+            "seismic_coefficient_kh": kh,
             "total_normal_stress_sigma_n_kpa": round(terrain["unit_weight_kN_m3"] * terrain["soil_depth_m"] * (math.cos(math.radians(env.slope))**2), 2),
             "pore_pressure_u_kpa": round(pore, 3),
             "effective_normal_stress_kpa": round(max(0.0, (terrain["unit_weight_kN_m3"] * terrain["soil_depth_m"] * (math.cos(math.radians(env.slope))**2)) - pore), 2),
@@ -357,6 +377,13 @@ async def calculate_risk_assessment(
         pore_pressure_details=pore_details,
         why_explanation=why_reasons,
         calculation_breakdown=calc_breakdown,
+        seismic_alert=seismic_alert,
+        seismic_details=seismic_info,
+        geological_factors={
+            "twi": env.twi,
+            "curvature": env.curvature,
+            "fault_distance_km": env.fault_distance_km,
+        },
     )
 
     try:

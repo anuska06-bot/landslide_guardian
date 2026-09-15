@@ -25,7 +25,7 @@ async def _get(client, lat, lon, daily=False, retries=2):
     params = {
         "latitude": lat, "longitude": lon,
         "timezone": "auto",
-        "current": "precipitation,relative_humidity_2m,temperature_2m,wind_speed_10m,soil_moisture_0_to_1cm",
+        "current": "precipitation,relative_humidity_2m,temperature_2m,wind_speed_10m,soil_moisture_0_to_1cm,soil_moisture_7_to_28cm",
         "hourly": "precipitation",
         "past_days": 3,
         "forecast_days": 7 if daily else 1,
@@ -59,13 +59,16 @@ async def fetch_environmental_data(latitude: float, longitude: float) -> Environ
         current = data.get("current", {})
         hourly = data.get("hourly", {})
         precip = hourly.get("precipitation", [])
+        sm_surf = float(current.get("soil_moisture_0_to_1cm", 0.3) or 0.3) * 100
+        sm_deep = float(current.get("soil_moisture_7_to_28cm", sm_surf / 100.0) or (sm_surf / 100.0)) * 100
         env = EnvironmentalData(
             rainfall_1h=float(current.get("precipitation", 0) or 0),
             rainfall_3h=float(sum(precip[-3:])) if precip else 0.0,
             rainfall_24h=float(sum(precip[-24:])) if precip else 0.0,
             rainfall_72h=float(sum(precip[-72:])) if precip else 0.0,
             rainfall_intensity=float(current.get("precipitation", 0) or 0),
-            soil_moisture=float(current.get("soil_moisture_0_to_1cm", 0.3) or 0.3) * 100,
+            soil_moisture=sm_surf,
+            soil_moisture_deep=sm_deep,
             humidity=float(current.get("relative_humidity_2m", 75) or 75),
             temperature=float(current.get("temperature_2m", 22) or 22),
             wind_speed=float(current.get("wind_speed_10m", 10) or 10),

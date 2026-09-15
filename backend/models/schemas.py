@@ -43,6 +43,10 @@ class EnvironmentalData(BaseModel):
     ndvi: float = 0.4
     distance_to_road: float = 400.0
     pore_pressure_kpa: float = 0.0
+    twi: float = 6.5
+    curvature: str = "PLANAR"
+    fault_distance_km: float = 25.0
+    soil_moisture_deep: float = 50.0
     data_source: str = "LIVE_API"
 
 
@@ -87,6 +91,9 @@ class RiskResult(BaseModel):
     pore_pressure_details: Dict = Field(default_factory=dict)
     why_explanation: List[str] = Field(default_factory=list)
     calculation_breakdown: Dict = Field(default_factory=dict)
+    seismic_alert: bool = False
+    seismic_details: Dict = Field(default_factory=dict)
+    geological_factors: Dict = Field(default_factory=dict)
 
 
 class SensorReading(BaseModel):

@@ -5,17 +5,17 @@ from typing import Tuple
 # software demonstration, not site investigation data.
 # soil_depth_m, cohesion_kpa, friction_angle_deg, porosity, saturated_unit_weight_kN_m3
 NER_PROFILES = {
-    "gangtok":   {"state": "Sikkim", "slope": 36.0, "elevation": 1650.0, "historical": 8, "aspect": 210.0, "ndvi": 0.35, "road": 120.0, "soil_depth": 2.0, "cohesion": 18.0, "phi": 28.0, "porosity": 0.55, "unit_weight": 19.0},
-    "shillong":  {"state": "Meghalaya", "slope": 28.0, "elevation": 1525.0, "historical": 5, "aspect": 180.0, "ndvi": 0.45, "road": 300.0, "soil_depth": 1.8, "cohesion": 22.0, "phi": 30.0, "porosity": 0.58, "unit_weight": 18.5},
-    "aizawl":    {"state": "Mizoram", "slope": 42.0, "elevation": 1132.0, "historical": 9, "aspect": 250.0, "ndvi": 0.30, "road": 90.0, "soil_depth": 1.6, "cohesion": 15.0, "phi": 27.0, "porosity": 0.60, "unit_weight": 18.5},
-    "kohima":    {"state": "Nagaland", "slope": 34.0, "elevation": 1444.0, "historical": 6, "aspect": 200.0, "ndvi": 0.40, "road": 150.0, "soil_depth": 1.9, "cohesion": 17.0, "phi": 28.0, "porosity": 0.57, "unit_weight": 18.8},
-    "itanagar":  {"state": "Arunachal Pradesh", "slope": 30.0, "elevation": 320.0,  "historical": 4, "aspect": 160.0, "ndvi": 0.55, "road": 400.0, "soil_depth": 2.2, "cohesion": 20.0, "phi": 29.0, "porosity": 0.62, "unit_weight": 18.2},
-    "guwahati":  {"state": "Assam", "slope": 12.0, "elevation": 55.0,   "historical": 2, "aspect": 90.0,  "ndvi": 0.50, "road": 600.0, "soil_depth": 2.0, "cohesion": 28.0, "phi": 32.0, "porosity": 0.52, "unit_weight": 17.8},
-    "imphal":    {"state": "Manipur", "slope": 22.0, "elevation": 786.0,  "historical": 3, "aspect": 140.0, "ndvi": 0.48, "road": 350.0, "soil_depth": 2.0, "cohesion": 24.0, "phi": 31.0, "porosity": 0.56, "unit_weight": 18.0},
-    "agartala":  {"state": "Tripura", "slope": 8.0,  "elevation": 15.0,   "historical": 1, "aspect": 70.0,  "ndvi": 0.52, "road": 700.0, "soil_depth": 2.0, "cohesion": 30.0, "phi": 33.0, "porosity": 0.50, "unit_weight": 17.5},
+    "gangtok":   {"state": "Sikkim", "slope": 36.0, "elevation": 1650.0, "historical": 8, "aspect": 210.0, "ndvi": 0.35, "road": 120.0, "soil_depth": 2.0, "cohesion": 18.0, "phi": 28.0, "porosity": 0.55, "unit_weight": 19.0, "twi": 7.4, "curvature": "CONCAVE", "fault_dist_km": 18.0},
+    "shillong":  {"state": "Meghalaya", "slope": 28.0, "elevation": 1525.0, "historical": 5, "aspect": 180.0, "ndvi": 0.45, "road": 300.0, "soil_depth": 1.8, "cohesion": 22.0, "phi": 30.0, "porosity": 0.58, "unit_weight": 18.5, "twi": 6.8, "curvature": "CONCAVE", "fault_dist_km": 22.0},
+    "aizawl":    {"state": "Mizoram", "slope": 42.0, "elevation": 1132.0, "historical": 9, "aspect": 250.0, "ndvi": 0.30, "road": 90.0, "soil_depth": 1.6, "cohesion": 15.0, "phi": 27.0, "porosity": 0.60, "unit_weight": 18.5, "twi": 8.1, "curvature": "CONCAVE", "fault_dist_km": 15.0},
+    "kohima":    {"state": "Nagaland", "slope": 34.0, "elevation": 1444.0, "historical": 6, "aspect": 200.0, "ndvi": 0.40, "road": 150.0, "soil_depth": 1.9, "cohesion": 17.0, "phi": 28.0, "porosity": 0.57, "unit_weight": 18.8, "twi": 7.2, "curvature": "CONCAVE", "fault_dist_km": 12.0},
+    "itanagar":  {"state": "Arunachal Pradesh", "slope": 30.0, "elevation": 320.0,  "historical": 4, "aspect": 160.0, "ndvi": 0.55, "road": 400.0, "soil_depth": 2.2, "cohesion": 20.0, "phi": 29.0, "porosity": 0.62, "unit_weight": 18.2, "twi": 6.6, "curvature": "PLANAR", "fault_dist_km": 14.0},
+    "guwahati":  {"state": "Assam", "slope": 12.0, "elevation": 55.0,   "historical": 2, "aspect": 90.0,  "ndvi": 0.50, "road": 600.0, "soil_depth": 2.0, "cohesion": 28.0, "phi": 32.0, "porosity": 0.52, "unit_weight": 17.8, "twi": 5.4, "curvature": "PLANAR", "fault_dist_km": 35.0},
+    "imphal":    {"state": "Manipur", "slope": 22.0, "elevation": 786.0,  "historical": 3, "aspect": 140.0, "ndvi": 0.48, "road": 350.0, "soil_depth": 2.0, "cohesion": 24.0, "phi": 31.0, "porosity": 0.56, "unit_weight": 18.0, "twi": 6.1, "curvature": "PLANAR", "fault_dist_km": 25.0},
+    "agartala":  {"state": "Tripura", "slope": 8.0,  "elevation": 15.0,   "historical": 1, "aspect": 70.0,  "ndvi": 0.52, "road": 700.0, "soil_depth": 2.0, "cohesion": 30.0, "phi": 33.0, "porosity": 0.50, "unit_weight": 17.5, "twi": 4.8, "curvature": "CONVEX", "fault_dist_km": 40.0},
 }
 
-DEFAULT_PROFILE = {"state": "NER", "slope": 25.0, "elevation": 1100.0, "historical": 4, "aspect": 180.0, "ndvi": 0.40, "road": 400.0, "soil_depth": 2.0, "cohesion": 20.0, "phi": 29.0, "porosity": 0.57, "unit_weight": 18.5}
+DEFAULT_PROFILE = {"state": "NER", "slope": 25.0, "elevation": 1100.0, "historical": 4, "aspect": 180.0, "ndvi": 0.40, "road": 400.0, "soil_depth": 2.0, "cohesion": 20.0, "phi": 29.0, "porosity": 0.57, "unit_weight": 18.5, "twi": 6.5, "curvature": "PLANAR", "fault_dist_km": 25.0}
 
 NER_COORDS = {
     "gangtok": (27.3389, 88.6065), "shillong": (25.5788, 91.8933),
@@ -112,7 +112,10 @@ def get_full_terrain_info(location_name: str, lat: float, lon: float) -> dict:
         "friction_angle_deg": p["phi"],
         "porosity": p["porosity"],
         "unit_weight_kN_m3": p["unit_weight"],
-        "profile_key": p["profile_key"],
+        "profile_key": p.get("profile_key", "default"),
+        "twi": p.get("twi", 6.5),
+        "plan_curvature": p.get("curvature", "CONCAVE" if p["slope"] >= 25 else "PLANAR"),
+        "fault_distance_km": p.get("fault_dist_km", 25.0),
     }
 
 
@@ -129,18 +132,39 @@ def estimate_pore_pressure(soil_moisture_pct: float, profile: dict) -> float:
     return round(9.81 * water_head, 3)
 
 
-def calculate_factor_of_safety(profile: dict, soil_moisture_pct: float, pore_pressure_kpa: float) -> float:
+def calculate_factor_of_safety(
+    profile: dict,
+    soil_moisture_pct: float,
+    pore_pressure_kpa: float,
+    seismic_coefficient_kh: float = 0.0
+) -> float:
     """
-    Simplified infinite-slope Mohr-Coulomb screening model.
-    FS = [c' + (sigma_n - u) tan(phi')] / tau
+    Simplified infinite-slope Mohr-Coulomb screening model with optional
+    pseudostatic seismic acceleration (k_h) and tectonic fault proximity weakening.
+    FS = [c' + (sigma_n - u - k_v*gamma*z) tan(phi')] / [shear + k_h*gamma*z*cos(beta)]
     """
-    beta = math.radians(max(2.0, min(profile["slope_deg"], 65.0)))
-    z = profile["soil_depth_m"]
-    gamma = profile["unit_weight_kN_m3"]
+    slope = profile.get("slope_deg", profile.get("slope", 25.0))
+    beta = math.radians(max(2.0, min(float(slope), 65.0)))
+    z = float(profile.get("soil_depth_m", profile.get("soil_depth", 2.0)))
+    gamma = float(profile.get("unit_weight_kN_m3", profile.get("unit_weight", 18.5)))
+    cohesion = float(profile.get("cohesion_kpa", profile.get("cohesion", 20.0)))
+    phi = float(profile.get("friction_angle_deg", profile.get("phi", 29.0)))
+
+    # Geological fault proximity factor: slight cohesion degradation if in active fault zone (<20km)
+    fault_dist = profile.get("fault_distance_km", profile.get("fault_dist_km", 25.0))
+    if fault_dist < 20.0:
+        cohesion *= max(0.88, 1.0 - 0.12 * ((20.0 - fault_dist) / 20.0))
+
     sigma_n = gamma * z * math.cos(beta) ** 2
     shear = gamma * z * math.sin(beta) * math.cos(beta)
-    effective_normal = max(0.0, sigma_n - max(0.0, pore_pressure_kpa))
-    fs = (profile["cohesion_kpa"] + effective_normal * math.tan(math.radians(profile["friction_angle_deg"]))) / max(shear, 0.1)
+
+    # Dynamic pseudostatic seismic inertia
+    kh = max(0.0, min(float(seismic_coefficient_kh or 0.0), 0.5))
+    kv = 0.5 * kh
+    dynamic_shear = shear + kh * gamma * z * math.cos(beta)
+    effective_normal = max(0.0, sigma_n - max(0.0, pore_pressure_kpa) - kv * gamma * z)
+
+    fs = (cohesion + effective_normal * math.tan(math.radians(phi))) / max(dynamic_shear, 0.1)
     return round(max(0.05, min(fs, 5.0)), 3)
 
 
