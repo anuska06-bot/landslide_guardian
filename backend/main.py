@@ -41,7 +41,7 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(
     title="Landslide Guardian API",
     description="Software-only SIH landslide risk monitoring with live weather, ML and future sensor compatibility.",
-    version="2.8.0",
+    version="3.0.0",
     lifespan=lifespan,
 )
 
@@ -91,7 +91,7 @@ async def config():
     mon = get_monitoring_state()
     return {
         "api_version": app.version,
-        "build_version": "2.8.0",
+        "build_version": "3.0.0",
         "storage_mode": db_manager.mode,
         "hardware_ready": False,
         "future_sensor_interface": True,
