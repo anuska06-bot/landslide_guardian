@@ -22,6 +22,7 @@ let sublocationsLayerGroup = null;
 let historicalLayerGroup = null;
 let sensorLayerGroup = null;
 let reportsLayerGroup = null;
+let corridorsLayerGroup = null;
 
 // Cached data
 let allRegions = [];
@@ -88,6 +89,7 @@ function initMap() {
   historicalLayerGroup = L.layerGroup().addTo(mapInstance);
   sensorLayerGroup = L.layerGroup().addTo(mapInstance);
   reportsLayerGroup = L.layerGroup().addTo(mapInstance);
+  corridorsLayerGroup = L.layerGroup();
 
   // Dynamic zoom listener to adapt detail like modern weather apps
   mapInstance.on("zoomend", () => {
@@ -121,6 +123,14 @@ async function loadBaseData() {
     // Render historical & sensors layer groups ahead of time
     renderHistoricalLayer(res.historical_events || []);
     renderSensorLayer(res.sensor_nodes || []);
+
+    try {
+      const roadData = await API.get("/reports/roads/status");
+      renderCorridorsLayer(roadData.corridors || {});
+    } catch (roadErr) {
+      console.warn("Could not load /reports/roads/status:", roadErr);
+      renderCorridorsLayer({});
+    }
   } catch (err) {
     console.warn("API /map/layers unavailable, initializing local regional geography:", err);
     // Initialize default NER regions bounds
@@ -144,6 +154,7 @@ async function loadBaseData() {
       slope: l.slope || 32,
       historical_freq: 5
     }));
+    renderCorridorsLayer({});
     handleZoomLevelChange();
   }
 }
@@ -388,6 +399,148 @@ function renderSensorLayer(sensors) {
   });
 }
 
+const CORRIDOR_GEOMETRIES = {
+  "NH-10": {
+    name: "NH-10 (Sevoke – Teesta – Rangpo – Gangtok)",
+    coords: [
+      [26.7271, 88.3953],
+      [26.8837, 88.4725],
+      [27.0600, 88.4300],
+      [27.1764, 88.5300],
+      [27.2345, 88.5000],
+      [27.3389, 88.6065]
+    ]
+  },
+  "NH-40": {
+    name: "NH-40 (Guwahati – Nongpoh – Shillong – Dawki)",
+    coords: [
+      [26.1445, 91.7362],
+      [25.9036, 91.8806],
+      [25.6025, 91.8744],
+      [25.5788, 91.8933],
+      [25.3080, 91.9050],
+      [25.1833, 92.0167]
+    ]
+  },
+  "NH-29": {
+    name: "NH-29 (Dimapur – Chumukedima – Kohima)",
+    coords: [
+      [25.9060, 93.7270],
+      [25.8050, 93.7750],
+      [25.7570, 93.8450],
+      [25.6751, 94.1086]
+    ]
+  },
+  "NH-37": {
+    name: "NH-37 (Guwahati – Nagaon – Kaziranga – Jorhat – Dibrugarh)",
+    coords: [
+      [26.1445, 91.7362],
+      [26.1150, 92.2150],
+      [26.3460, 92.6840],
+      [26.5775, 93.1711],
+      [26.7509, 94.2037],
+      [27.4728, 94.9120]
+    ]
+  },
+  "NH-54": {
+    name: "NH-54 (Silchar – Vairengte – Kolasib – Sairang – Aizawl)",
+    coords: [
+      [24.8333, 92.7789],
+      [24.5020, 92.7650],
+      [24.2250, 92.6780],
+      [23.8050, 92.6580],
+      [23.7271, 92.7176]
+    ]
+  },
+  "NH-13": {
+    name: "NH-13 Trans-Arunachal Highway (Pasighat – Pangin – Along)",
+    coords: [
+      [28.0667, 95.3333],
+      [28.2100, 94.9900],
+      [28.1700, 94.8000]
+    ]
+  },
+  "NH-27": {
+    name: "NH-27 (Nagaon – Lumding – Haflong – Silchar)",
+    coords: [
+      [26.3460, 92.6840],
+      [25.7500, 93.1700],
+      [25.1764, 93.0200],
+      [24.8333, 92.7789]
+    ]
+  },
+  "NH-8": {
+    name: "NH-8 (Badarpur – Karimganj – Dharmanagar – Ambassa – Agartala)",
+    coords: [
+      [24.9000, 92.5800],
+      [24.8667, 92.3500],
+      [24.3800, 92.1600],
+      [23.9200, 91.8500],
+      [23.8315, 91.2868]
+    ]
+  }
+};
+
+function renderCorridorsLayer(corridorsStatusMap) {
+  corridorsLayerGroup.clearLayers();
+
+  for (const [code, geom] of Object.entries(CORRIDOR_GEOMETRIES)) {
+    const info = (corridorsStatusMap && corridorsStatusMap[code]) || {
+      status: "FULLY_OPEN",
+      description: geom.name,
+      disruptions_count: 0
+    };
+
+    const status = info.status || "FULLY_OPEN";
+    const color = {
+      "BLOCKED": "#ef4444",
+      "SINGLE_LANE": "#eab308",
+      "ESCORT_ONLY": "#3b82f6",
+      "FULLY_OPEN": "#10b981"
+    }[status] || "#10b981";
+
+    const line = L.polyline(geom.coords, {
+      color: color,
+      weight: 5,
+      opacity: 0.85,
+      dashArray: status === "BLOCKED" ? "6, 8" : null
+    });
+
+    const midIdx = Math.floor(geom.coords.length / 2);
+    const midCoord = geom.coords[midIdx];
+
+    const statusBadge = {
+      "BLOCKED": '<span style="color:#ef4444;font-weight:700;">🔴 BLOCKED</span>',
+      "SINGLE_LANE": '<span style="color:#eab308;font-weight:700;">🟡 SINGLE LANE</span>',
+      "ESCORT_ONLY": '<span style="color:#3b82f6;font-weight:700;">🔵 ESCORT ONLY</span>',
+      "FULLY_OPEN": '<span style="color:#10b981;font-weight:700;">🟢 FULLY OPEN</span>'
+    }[status] || status;
+
+    const popupHtml = `
+      <div style="font-family: sans-serif; max-width: 240px;">
+        <h4 style="margin: 0 0 4px 0; color: #fff;">🛣️ Highway Corridor: ${code}</h4>
+        <div style="font-size: 0.82rem; margin-bottom: 6px; color: #cbd5e1;">${geom.name}</div>
+        <div style="font-size: 0.85rem; margin-bottom: 4px;">Status: ${statusBadge}</div>
+        <div style="font-size: 0.76rem; color: #94a3b8;">Active Disruption Reports: ${info.disruptions_count || 0}</div>
+      </div>
+    `;
+
+    line.bindPopup(popupHtml);
+    corridorsLayerGroup.addLayer(line);
+
+    // Add a pulsing dot at the midpoint for immediate visual recognition
+    const marker = L.circleMarker(midCoord, {
+      radius: 6,
+      color: color,
+      fillColor: "#fff",
+      fillOpacity: 0.9,
+      weight: 2
+    });
+    marker.bindPopup(popupHtml);
+    corridorsLayerGroup.addLayer(marker);
+  }
+}
+
 function getMetricColor(val, scale) {
   for (let s of scale) {
     if (val <= s.max) return s.color;
@@ -411,12 +564,19 @@ function switchLayer(layerKey) {
   if (layerKey === "history") {
     mapInstance.addLayer(historicalLayerGroup);
     mapInstance.removeLayer(sensorLayerGroup);
+    mapInstance.removeLayer(corridorsLayerGroup);
   } else if (layerKey === "sensors") {
     mapInstance.addLayer(sensorLayerGroup);
     mapInstance.removeLayer(historicalLayerGroup);
+    mapInstance.removeLayer(corridorsLayerGroup);
+  } else if (layerKey === "corridors") {
+    mapInstance.addLayer(corridorsLayerGroup);
+    mapInstance.removeLayer(historicalLayerGroup);
+    mapInstance.removeLayer(sensorLayerGroup);
   } else {
     mapInstance.removeLayer(historicalLayerGroup);
     mapInstance.removeLayer(sensorLayerGroup);
+    mapInstance.removeLayer(corridorsLayerGroup);
   }
 
   // Update dynamic legend
@@ -454,6 +614,14 @@ function updateLegend(layerKey) {
       <div class="legend-item"><span class="status-dot" style="background: #eab308;"></span> Moderate (15-28°)</div>
       <div class="legend-item"><span class="status-dot" style="background: #f97316;"></span> Steep (28-38°)</div>
       <div class="legend-item"><span class="status-dot" style="background: #ef4444;"></span> Critical (&gt;38°)</div>
+    `;
+  } else if (layerKey === "corridors") {
+    bar.innerHTML = `
+      <span style="color: var(--muted); font-weight: 600; font-size: 0.72rem; text-transform: uppercase;">Corridor Status:</span>
+      <div class="legend-item"><span class="status-dot" style="background: #10b981;"></span> Fully Open</div>
+      <div class="legend-item"><span class="status-dot" style="background: #eab308;"></span> Single Lane</div>
+      <div class="legend-item"><span class="status-dot" style="background: #3b82f6;"></span> Escort Only</div>
+      <div class="legend-item"><span class="status-dot" style="background: #ef4444;"></span> Blocked</div>
     `;
   } else if (layerKey === "history") {
     bar.innerHTML = `

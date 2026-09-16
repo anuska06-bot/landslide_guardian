@@ -264,12 +264,32 @@ def send_otp_email(recipient: str, otp_code: str, expiry_minutes: int = 10) -> d
     return _send(recipient, subject, body)
 
 
-def send_alert_email(recipient: str, location: str, message: str, risk_score=None, risk_level=None):
-    subject = f"🚨 URGENT LANDSLIDE SOS ALERT — {location} [{risk_level or 'HIGH RISK'}]"
-    score_line = f"Calculated Risk: {risk_score}% ({risk_level})" if risk_score is not None else "Emergency SOS Notification"
-    ts = datetime.now(timezone.utc).strftime("%d %b %Y, %I:%M %p UTC")
+def send_alert_email(
+    recipient: str,
+    location: str,
+    message: str,
+    risk_score=None,
+    risk_level=None,
+    lang: str = "en",
+):
+    try:
+        from .multilingual import generate_multilingual_alert
+        alert_data = generate_multilingual_alert(
+            location=location,
+            risk_level=risk_level or "HIGH",
+            risk_score=risk_score,
+            custom_msg=message,
+            lang=lang,
+        )
+        subject = alert_data["subject"]
+        body = alert_data["body"]
+    except Exception as exc:
+        logger.warning("Multilingual alert generation failed, using standard template: %s", exc)
+        subject = f"🚨 URGENT LANDSLIDE SOS ALERT — {location} [{risk_level or 'HIGH RISK'}]"
+        score_line = f"Calculated Risk: {risk_score}% ({risk_level})" if risk_score is not None else "Emergency SOS Notification"
+        ts = datetime.now(timezone.utc).strftime("%d %b %Y, %I:%M %p UTC")
 
-    body = f"""================================================================================
+        body = f"""================================================================================
 🚨 LANDSLIDE GUARDIAN — AUTOMATIC REGIONAL SOS DISPATCH
 ================================================================================
 Target Sector   : {location}
@@ -331,7 +351,14 @@ This message was triggered automatically by 15-minute regional IoT telemetry sca
 """
     return _send(recipient, subject, body)
 
-def dispatch_email_sos(location: str, users: list, custom_msg: str = None, risk_score=None, risk_level=None):
+def dispatch_email_sos(
+    location: str,
+    users: list,
+    custom_msg: str = None,
+    risk_score=None,
+    risk_level=None,
+    lang: str = None,
+):
     timestamp = datetime.now(timezone.utc).isoformat()
     message = custom_msg or (
         f"Landslide risk has reached the emergency notification threshold near {location}. "
@@ -346,10 +373,12 @@ def dispatch_email_sos(location: str, users: list, custom_msg: str = None, risk_
             continue
         
         name = user.get("name", "Resident / Responder") if isinstance(user, dict) else "Resident"
-        result = send_alert_email(email, location, message, risk_score, risk_level)
+        user_lang = lang or (user.get("language", "en") if isinstance(user, dict) else "en")
+        result = send_alert_email(email, location, message, risk_score, risk_level, lang=user_lang)
         logs.append({
             "name": name,
             "email": email,
+            "language": user_lang,
             **result,
             "timestamp": timestamp,
         })

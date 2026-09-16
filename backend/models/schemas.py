@@ -94,6 +94,13 @@ class RiskResult(BaseModel):
     seismic_alert: bool = False
     seismic_details: Dict = Field(default_factory=dict)
     geological_factors: Dict = Field(default_factory=dict)
+    dataset_type: str = "synthetic"
+    real_world_validated: bool = False
+    model_version: str = "v3.0-extra-trees-ner"
+    scientific_disclaimer: str = (
+        "The current prototype uses synthetic data where appropriate. "
+        "Real-world validation requires authorized field, government, or institutional data."
+    )
 
 
 class SensorReading(BaseModel):
@@ -132,12 +139,14 @@ class CitizenRegisterRequest(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     email: str = Field(min_length=5, max_length=200)
     location: str = Field(min_length=1, max_length=200)
+    language: Optional[str] = Field(default="en", description="Preferred notification language: en, hi, as, bn")
 
 
 class UserRegisterRequest(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     email: str = Field(min_length=5, max_length=200)
     region: str = Field(min_length=1, max_length=100)
+    language: Optional[str] = Field(default="en", description="Preferred notification language: en, hi, as, bn")
 
 
 class SendOtpRequest(BaseModel):
@@ -152,6 +161,7 @@ class VerifyOtpRequest(BaseModel):
 class SOSBroadcastRequest(BaseModel):
     location: str = Field(min_length=1, max_length=200)
     custom_message: Optional[str] = Field(default=None, max_length=1000)
+    language: Optional[str] = Field(default="en", description="Language override for broadcast: en, hi, as, bn")
 
 
 class TestEmailRequest(BaseModel):

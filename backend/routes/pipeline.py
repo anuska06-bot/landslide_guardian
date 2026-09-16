@@ -222,6 +222,8 @@ async def get_map_layers(layer_type: str = Query(default="all")):
         {"name": "Durtlang Ridge Collapse", "region": "Mizoram", "lat": 23.7833, "lon": 92.7333, "year": 2019, "type": "Fault-controlled Rockslide", "impact": "Major cliff displacement threatening residential hospital."},
         {"name": "Mawlai Escarpment Road Slide", "region": "Meghalaya", "lat": 25.6025, "lon": 91.8744, "year": 2021, "type": "Road Cut Mudslide", "impact": "GS Road blocked by sudden colluvial flow."},
         {"name": "Banderdewa Bypass Slump", "region": "Arunachal Pradesh", "lat": 27.1350, "lon": 93.8167, "year": 2020, "type": "Siwalik Soil Slip", "impact": "Arunachal border highway subsidence."},
+        {"name": "Mangan Multi-Slope Collapse", "region": "Sikkim", "lat": 27.5112, "lon": 88.5284, "year": 2024, "type": "Monsoonal Debris Flow & Cut Collapse", "impact": "Severe access severance isolating North Sikkim district headquarters."},
+        {"name": "Mirik Massive Hillslope Failure", "region": "Sikkim / Darjeeling Border", "lat": 26.8900, "lon": 88.1700, "year": 2015, "type": "Rotational Earth Slump", "impact": "High casualty event following 300mm+ 24-hr torrential rainfall."},
         {"name": "Dzükou Valley Footpath Slide", "region": "Nagaland", "lat": 25.5539, "lon": 94.0628, "year": 2021, "type": "Alpine Scree Slide", "impact": "Trek route breach following continuous precipitation."},
         {"name": "Baramura Pass Inundation Slide", "region": "Tripura", "lat": 23.8750, "lon": 91.5650, "year": 2018, "type": "Cut-slope Debris Flow", "impact": "NH-8 disrupted during monsoon depression."},
     ]

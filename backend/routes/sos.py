@@ -56,7 +56,7 @@ async def dispatch_sos_alert(req: SOSBroadcastRequest, authorization: str | None
         1 for u in db_manager.citizens.find()
         if u.get("email_verified") is not True and lk in (u.get("location") or u.get("region") or "").lower()
     )
-    result = dispatch_email_sos(req.location, matching, req.custom_message)
+    result = dispatch_email_sos(req.location, matching, req.custom_message, lang=req.language)
     result["unverified_excluded"] = unverified
     if not matching:
         result["status"] = "NO_VERIFIED_RECIPIENTS"

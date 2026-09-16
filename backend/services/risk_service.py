@@ -305,6 +305,7 @@ async def calculate_risk_assessment(
     # Build explicit mathematical and geotechnical calculation breakdown for judges/engineers
     calc_breakdown = {
         "pore_pressure": {
+            "label": "Screening-Level Hydrogeological Estimate",
             "formula": "u = γ_w · h_w = γ_w · [z_soil · (S_eff)]",
             "gamma_w_kpa_m": 9.81,
             "soil_depth_m": terrain["soil_depth_m"],
@@ -316,9 +317,11 @@ async def calculate_risk_assessment(
             "effective_water_head_m": pore_details.get("water_head_m", 0.0),
             "calculated_u_kpa": round(pore, 3),
             "high_threshold_kpa": thresholds["pore_pressure_high_kpa"],
+            "assumptions": "Calculated via rainfall infiltration and void ratio; not a physical piezometer.",
             "interpretation": f"At {soil:.1f}% soil saturation and {rainfall:.1f} mm rain, estimated head is {pore_details.get('water_head_m', 0.0):.3f} m yielding u = {pore:.2f} kPa."
         },
         "factor_of_safety": {
+            "label": "Screening-Level Infinite Slope Mohr-Coulomb Estimate",
             "formula": "FS = [c' + (σ_n - u - kv·γ·z) · tan(φ')] / (τ_shear + kh·γ·z·cos(β))",
             "cohesion_c_prime_kpa": terrain["cohesion_kpa"],
             "friction_angle_phi_deg": terrain["friction_angle_deg"],
@@ -329,9 +332,11 @@ async def calculate_risk_assessment(
             "effective_normal_stress_kpa": round(max(0.0, (terrain["unit_weight_kN_m3"] * terrain["soil_depth_m"] * (math.cos(math.radians(env.slope))**2)) - pore), 2),
             "shear_stress_tau_kpa": round(terrain["unit_weight_kN_m3"] * terrain["soil_depth_m"] * math.sin(math.radians(env.slope)) * math.cos(math.radians(env.slope)), 2),
             "calculated_fs": fs,
+            "assumptions": "Planar infinite-slope assumption with regional geotechnical parameters. Borehole validation needed for structural engineering.",
             "interpretation": f"FS = {fs:.2f} ({"CRITICAL < 1.0" if fs < 1.0 else ("MARGINAL < 1.3" if fs < 1.3 else "STABLE > 1.3")})"
         },
         "composite_risk_score": {
+            "label": "Tri-Partite Hybrid Risk Index",
             "formula": "Risk = 0.55 · (ML_Prob · 100) + 0.25 · Geo_Score + 0.20 · Criteria_Stress",
             "ml_probability_pct": round(ml_probability * 100, 1),
             "ml_contribution": round(0.55 * (ml_probability * 100), 1),
@@ -341,7 +346,11 @@ async def calculate_risk_assessment(
             "criteria_contribution": round(0.20 * criteria_score, 1),
             "total_score_raw": round(final_score_raw, 1),
             "final_score": score,
-            "classification": level
+            "classification": level,
+            "model_version": "v3.0-extra-trees-ner",
+            "dataset_type": "synthetic_physics_grounded",
+            "real_world_validated": False,
+            "disclaimer": "The current prototype uses synthetic data where appropriate. Real-world validation requires authorized field, government, or institutional data."
         }
     }
 

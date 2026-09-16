@@ -161,6 +161,120 @@ function setupMediaCapture() {
   }
 }
 
+// Offline queue storage key
+const OFFLINE_QUEUE_KEY = "lg_offline_reports_queue";
+
+document.addEventListener("DOMContentLoaded", () => {
+  initLocationsDatalist();
+  setupGps();
+  setupMediaCapture();
+  setupFormSubmit();
+  initOfflineSupport();
+  loadRecentReports();
+
+  // Periodic refresh of live reports radar (every 30 seconds)
+  setInterval(loadRecentReports, 30000);
+});
+
+function getOfflineQueue() {
+  try {
+    const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveOfflineQueue(queue) {
+  try {
+    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+  } catch (e) {
+    console.warn("Could not save to localStorage:", e);
+  }
+  updateOfflineBanner();
+}
+
+function updateOfflineBanner() {
+  const banner = document.getElementById("offlineQueueBanner");
+  const bannerText = document.getElementById("offlineBannerText");
+  if (!banner) return;
+
+  const queue = getOfflineQueue();
+  if (queue.length > 0) {
+    banner.style.display = "flex";
+    if (bannerText) {
+      bannerText.textContent = `📦 ${queue.length} field report(s) queued offline (Will auto-sync on reconnect)`;
+    }
+  } else {
+    banner.style.display = "none";
+  }
+}
+
+function initOfflineSupport() {
+  updateOfflineBanner();
+
+  const syncBtn = document.getElementById("btnSyncNow");
+  if (syncBtn) {
+    syncBtn.addEventListener("click", () => {
+      syncOfflineReports();
+    });
+  }
+
+  window.addEventListener("online", () => {
+    console.log("Network online detected. Syncing offline reports queue...");
+    syncOfflineReports();
+  });
+}
+
+async function syncOfflineReports() {
+  const queue = getOfflineQueue();
+  if (!queue.length) return;
+
+  const msg = document.getElementById("reportStatusMsg");
+  const bannerText = document.getElementById("offlineBannerText");
+  if (bannerText) bannerText.textContent = `🔄 Syncing ${queue.length} queued report(s)...`;
+
+  const remaining = [];
+  let syncedCount = 0;
+
+  for (const item of queue) {
+    try {
+      const formData = new FormData();
+      for (const [k, v] of Object.entries(item)) {
+        formData.append(k, v);
+      }
+
+      const endpoint = (window.API_BASE || "/api") + "/reports/submit";
+      const res = await fetch(endpoint, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res.ok) {
+        syncedCount++;
+      } else {
+        remaining.push(item);
+      }
+    } catch (err) {
+      console.warn("Failed to sync item, retaining:", err);
+      remaining.push(item);
+    }
+  }
+
+  saveOfflineQueue(remaining);
+
+  if (syncedCount > 0) {
+    if (msg) {
+      msg.innerHTML = `
+        <div style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:.85rem;border-radius:6px">
+          <strong>✅ Synced ${syncedCount} offline report(s) successfully!</strong>
+        </div>
+      `;
+    }
+    loadRecentReports();
+  }
+}
+
 function setupFormSubmit() {
   const form = document.getElementById("incidentForm");
   const msg = document.getElementById("reportStatusMsg");
@@ -186,16 +300,38 @@ function setupFormSubmit() {
       return;
     }
 
+    const payloadObj = {
+      reporter_name: reporterName || "Citizen Reporter",
+      phone_or_email: phoneOrEmail,
+      location_name: locationName,
+      latitude: lat,
+      longitude: lon,
+      hazard_type: hazardType,
+      severity: severity,
+      road_status: roadStatus,
+      description: description,
+    };
+
+    // If device is offline, immediately save to local offline queue
+    if (!navigator.onLine) {
+      const queue = getOfflineQueue();
+      queue.push(payloadObj);
+      saveOfflineQueue(queue);
+
+      msg.innerHTML = `
+        <div style="background:#fffbeb;color:#92400e;border:1px solid #fcd34d;padding:.85rem;border-radius:6px">
+          <strong>📦 Offline Mode Active:</strong> You are currently offline.<br>
+          Report has been saved safely to your device's local queue and will auto-sync when network connects.
+        </div>
+      `;
+      form.reset();
+      return;
+    }
+
     const formData = new FormData();
-    formData.append("reporter_name", reporterName || "Citizen Reporter");
-    formData.append("phone_or_email", phoneOrEmail);
-    formData.append("location_name", locationName);
-    formData.append("latitude", lat);
-    formData.append("longitude", lon);
-    formData.append("hazard_type", hazardType);
-    formData.append("severity", severity);
-    formData.append("road_status", roadStatus);
-    formData.append("description", description);
+    for (const [k, v] of Object.entries(payloadObj)) {
+      formData.append(k, v);
+    }
 
     if (selectedMediaFile) {
       formData.append("file", selectedMediaFile);
@@ -209,7 +345,7 @@ function setupFormSubmit() {
       const endpoint = (window.API_BASE || "/api") + "/reports/submit";
       const res = await fetch(endpoint, {
         method: "POST",
-        body: formData
+        body: formData,
       });
 
       if (!res.ok) {
@@ -223,7 +359,7 @@ function setupFormSubmit() {
         <div style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:.85rem;border-radius:6px">
           <strong>✅ Report Logged: ${data.report_id}</strong><br>
           ${data.message}<br>
-          <small>Disaster mitigation units & road operators notified of ${roadStatus} on ${locationName}.</small>
+          <small>Priority: <strong>${data.response_priority || "P3_STANDARD"}</strong> | Status: <em>${data.confirmation_status || "UNCONFIRMED_CITIZEN_REPORT"}</em></small>
         </div>
       `;
 
@@ -237,9 +373,15 @@ function setupFormSubmit() {
       loadRecentReports();
     } catch (err) {
       console.error("Report submit error:", err);
+      // If network failed, offer offline persistence
+      const queue = getOfflineQueue();
+      queue.push(payloadObj);
+      saveOfflineQueue(queue);
+
       msg.innerHTML = `
-        <div style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:.85rem;border-radius:6px">
-          <strong>❌ Failed to submit report:</strong> ${err.message}
+        <div style="background:#fffbeb;color:#92400e;border:1px solid #fcd34d;padding:.85rem;border-radius:6px">
+          <strong>⚠️ Network Connection Lost:</strong> ${err.message}<br>
+          Report was automatically preserved in your offline queue and will sync once connection stabilizes.
         </div>
       `;
     } finally {
@@ -263,7 +405,7 @@ async function loadRecentReports() {
     const reports = data.reports || [];
 
     if (countBadge) {
-      countBadge.textContent = `${reports.length} Active Reports`;
+      countBadge.textContent = `${reports.length} Reports`;
     }
 
     if (!reports.length) {
@@ -294,6 +436,18 @@ async function loadRecentReports() {
                        r.severity === "HIGH" ? "badge-high" :
                        r.severity === "MODERATE" ? "badge-moderate" : "badge-low";
 
+      const priorityBadge = {
+        "P1_EMERGENCY": "badge-critical",
+        "P2_URGENT": "badge-high",
+        "P3_STANDARD": "badge-moderate",
+        "P4_ADVISORY": "badge-low"
+      }[r.response_priority] || "badge-moderate";
+
+      const isConfirmed = r.confirmation_status === "OFFICIALLY_CONFIRMED" || r.status === "VERIFIED";
+      const confirmBadge = isConfirmed
+        ? `<span class="badge badge-fully-open">✅ Officially Confirmed</span>`
+        : `<span class="badge" style="background:#f3f4f6;color:#4b5563;border:1px solid #d1d5db">⏳ Unconfirmed Citizen Report</span>`;
+
       const timeStr = r.timestamp ? new Date(r.timestamp).toLocaleString() : "Recently";
 
       let mediaHtml = "";
@@ -310,9 +464,10 @@ async function loadRecentReports() {
         <div class="report-card-item">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.35rem">
             <strong>${r.location_name}</strong>
-            <div>
+            <div style="display:flex;gap:.3rem;align-items:center;flex-wrap:wrap">
               <span class="badge ${roadClass}">${roadText}</span>
               <span class="badge ${sevBadge}">${r.severity}</span>
+              <span class="badge ${priorityBadge}">${r.response_priority || "P3_STANDARD"}</span>
             </div>
           </div>
 
@@ -326,9 +481,12 @@ async function loadRecentReports() {
 
           ${mediaHtml}
 
-          <div style="font-size:.78rem;color:var(--text-muted);display:flex;justify-content:space-between;margin-top:.25rem">
+          <div style="font-size:.78rem;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center;margin-top:.25rem;flex-wrap:wrap;gap:.35rem">
             <span>Reported by: ${r.reporter_name}</span>
-            <span>${r.verified ? "✅ Official Verified" : "⏳ Citizen Logged"}</span>
+            <div style="display:flex;gap:.4rem;align-items:center">
+              ${confirmBadge}
+              <span style="font-size:.75rem;padding:2px 6px;background:#e5e7eb;border-radius:4px">Lifecycle: ${r.status || "SUBMITTED"}</span>
+            </div>
           </div>
         </div>
       `;
@@ -337,7 +495,7 @@ async function loadRecentReports() {
     console.warn("Could not load reports feed:", err);
     container.innerHTML = `
       <div style="text-align:center;padding:1.5rem;color:var(--text-muted)">
-        Live reports feed currently offline. Local mode enabled.
+        Live reports feed currently offline. Local cache enabled.
       </div>
     `;
   }
