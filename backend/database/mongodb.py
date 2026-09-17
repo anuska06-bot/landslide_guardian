@@ -144,6 +144,7 @@ class DatabaseManager:
         self.rainfall_records = self.db["rainfall_records"]
         self.otps = self.db["otps"]
         self.incident_reports = self.db["incident_reports"]
+        self.offline_sos_queue = self.db["offline_sos_queue"]
 
     def _create_indexes(self):
         self.risk_assessments.create_index([("timestamp", -1)])
@@ -157,6 +158,7 @@ class DatabaseManager:
         self.rainfall_records.create_index([("location_key", 1), ("timestamp", -1)])
         self.rainfall_records.create_index([("dedup_key", 1)])
         self.otps.create_index([("email", 1)])
+        self.offline_sos_queue.create_index([("status", 1), ("timestamp", -1)])
 
     def ping(self) -> bool:
         if not self.is_connected or self.client is None:

@@ -1,8 +1,10 @@
 from fastapi import APIRouter, HTTPException, Header
 from ..database.mongodb import db_manager, clean_document
 from ..models.schemas import CitizenRegisterRequest, SOSBroadcastRequest, TestEmailRequest
-from ..services.monitor import find_verified_recipients
-from ..services.notification_service import dispatch_email_sos, send_plain_email, _smtp_configured, _get_smtp_config
+from ..services.monitor import find_verified_recipients, auto_dispatch
+from ..services.notification_service import (
+    dispatch_email_sos, send_plain_email, _smtp_configured, _get_smtp_config, process_offline_sos_queue
+)
 from ..services.otp_service import clear_otp_rate_limit
 
 router = APIRouter()
@@ -105,5 +107,50 @@ async def test_email(req: TestEmailRequest):
     res["smtp_host"] = host
     res["smtp_port"] = port
     res["smtp_user"] = user
+    return res
+
+
+@router.get("/sos/outbox")
+async def get_sos_outbox():
+    """Returns queued offline emergency alerts and outbox status."""
+    docs = list(db_manager.offline_sos_queue.find().sort("timestamp", -1).limit(50))
+    pending_count = db_manager.offline_sos_queue.count_documents({"status": "QUEUED_FOR_RETRY"})
+    delivered_count = db_manager.offline_sos_queue.count_documents({"status": "DELIVERED"})
+    simulated_count = db_manager.offline_sos_queue.count_documents({"status": "SIMULATED_DISPATCHED"})
+    return {
+        "status": "ONLINE",
+        "pending_count": pending_count,
+        "delivered_count": delivered_count,
+        "simulated_count": simulated_count,
+        "total_queued": len(docs),
+        "recent_queue": [clean_document(d) for d in docs],
+    }
+
+
+@router.post("/sos/process-outbox")
+async def process_outbox_endpoint():
+    """Trigger an immediate processing cycle for pending offline alerts."""
+    res = process_offline_sos_queue(limit=20)
+    return {
+        "status": "PROCESSED",
+        "result": res,
+    }
+
+
+@router.post("/sos/test-auto-dispatch")
+async def test_auto_dispatch_endpoint(location: str = "Gangtok, Sikkim", risk_score: int = 88, risk_level: str = "CRITICAL"):
+    """
+    End-to-end verification endpoint: triggers the Auto SOS pipeline for any sector,
+    verifying recipient matching, smart cooldown bypass, and delivery/offline queuing.
+    """
+    res = auto_dispatch(
+        location=location,
+        risk_score=risk_score,
+        risk_level=risk_level,
+        recommendation="Mandatory evacuation of downstream zones.",
+        region_id="sikkim",
+        rainfall=65.0,
+        force=True,
+    )
     return res
 
