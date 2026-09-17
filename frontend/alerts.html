@@ -125,9 +125,21 @@
     </div>
 
     <div class="card" style="margin-top:1.25rem">
-      <div class="card-header">
-        <span class="card-title">Active warnings & Regional Radar</span>
-        <span class="badge badge-high" id="activeCountBadge">Loading</span>
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <span class="card-title" style="display:flex;align-items:center;gap:6px">
+            <span>📡</span> Active Warnings &amp; Regional Radar
+          </span>
+          <div style="font-size:0.78rem;color:var(--muted);margin-top:2px">
+            Live NER 8-state telemetry sweep &amp; real-time early warning bulletin
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button id="btnSweepRadar" class="btn btn-sm btn-secondary" style="padding:5px 12px;font-size:0.78rem;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;cursor:pointer">
+            <span id="sweepIcon">🔄</span> <span>Sweep Radar Now</span>
+          </button>
+          <span class="badge badge-high" id="activeCountBadge">Loading</span>
+        </div>
       </div>
       <div id="alertsFeedContainer"></div>
     </div>
